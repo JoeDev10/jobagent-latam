@@ -47,12 +47,21 @@ jobs:
         run: |
           pytest -m smoke -v --tb=short
 
+      # Tests unitarios y de integración (todos con mocks — sin red, sin browser)
+      # Excluimos 'live' que requieren API keys reales o internet.
+      - name: Ejecutar suite completa (unit + integration)
+        env:
+          GROQ_API_KEY: test_key_for_ci_only
+          PYTHONUTF8: "1"
+        run: |
+          pytest -m "not live and not slow" -v --tb=short --ignore=tests/test_smoke.py
+
       - name: Generar reporte de cobertura
         env:
           GROQ_API_KEY: test_key_for_ci_only
           PYTHONUTF8: "1"
         run: |
-          pytest -m smoke --cov=core --cov=modules --cov-report=term-missing --cov-report=xml
+          pytest -m "not live" --cov=core --cov=modules --cov-report=term-missing --cov-report=xml
 
       - name: Subir reporte de cobertura como artifact
         if: matrix.python-version == '3.12'
