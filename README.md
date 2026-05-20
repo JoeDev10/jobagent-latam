@@ -4,7 +4,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.12+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Tests](https://img.shields.io/badge/tests-12_passing-brightgreen.svg)
+[![Tests](https://github.com/JoeDev10/jobagent-latam/actions/workflows/tests.yml/badge.svg)](https://github.com/JoeDev10/jobagent-latam/actions/workflows/tests.yml)
 ![Status](https://img.shields.io/badge/status-MVP-orange.svg)
 
 ## 📋 Qué hace
