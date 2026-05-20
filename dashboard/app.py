@@ -148,7 +148,7 @@ if page == "📊 Dashboard":
 elif page == "📋 Aplicaciones":
     st.title("📋 Mis Aplicaciones")
 
-    col_filter, col_count = st.columns([3, 1])
+    col_filter, col_count, col_export = st.columns([3, 1, 1])
     status_filter = col_filter.selectbox(
         "Filtrar por estado",
         ["Todas"] + [s.value for s in ApplicationStatus],
@@ -157,6 +157,13 @@ elif page == "📋 Aplicaciones":
     status_enum = None if status_filter == "Todas" else ApplicationStatus(status_filter)
     applications = tracker.get_applications(status_enum)
     col_count.metric("Resultados", len(applications))
+
+    if applications:
+        export_cols = ["title", "company", "portal", "status", "relevance_score", "salary_range", "location", "url", "created_at", "notes"]
+        df_export = pd.DataFrame(applications)[[c for c in export_cols if c in pd.DataFrame(applications).columns]]
+        df_export.columns = [c.replace("_", " ").title() for c in df_export.columns]
+        csv_bytes = df_export.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+        col_export.download_button("⬇️ CSV", csv_bytes, "aplicaciones.csv", "text/csv", use_container_width=True)
 
     if not applications:
         st.info("No hay aplicaciones con ese filtro.")
@@ -220,6 +227,18 @@ elif page == "📋 Aplicaciones":
                         st.warning("Sin carta de presentación generada — no se puede aplicar todavía.")
                     else:
                         st.info(f"Esta aplicación ya está en estado **{status}**")
+
+                    # Blacklist rápida
+                    company = app["company"]
+                    current_profile = _current_profile()
+                    if current_profile and company.lower() not in [e.lower() for e in current_profile.exclude_companies]:
+                        if st.button(f"🚫 Bloquear {company[:25]}", key=f"bl_{app['id']}"):
+                            updated = current_profile.model_copy(
+                                update={"exclude_companies": current_profile.exclude_companies + [company]}
+                            )
+                            profile_manager.save(updated, st.session_state.selected_profile)
+                            st.success(f"'{company}' agregada a la blacklist")
+                            st.rerun()
 
 
 # ─── Vacantes ─────────────────────────────────────────────────────────────────
@@ -415,6 +434,11 @@ elif page == "👤 Mi Perfil":
                 min_value=0,
                 value=profile.min_salary or 0,
             )
+            exclude_companies = st.text_input(
+                "Empresas a ignorar / blacklist (separadas por coma)",
+                value=", ".join(profile.exclude_companies),
+                help="El agente ignorará vacantes de estas empresas. Útil para agencias de RRHH o empresas que ya te rechazaron.",
+            )
 
             profile_name = st.text_input(
                 "Nombre del perfil (para guardar)",
@@ -486,6 +510,7 @@ elif page == "👤 Mi Perfil":
                         target_industries=[i.strip() for i in target_industries.split(",") if i.strip()],
                         min_salary=int(min_salary) if min_salary else None,
                         preferred_modality=JobModality(preferred_modality),
+                        exclude_companies=[c.strip() for c in exclude_companies.split(",") if c.strip()],
                     )
 
                     profile_manager.save(new_profile, profile_name)

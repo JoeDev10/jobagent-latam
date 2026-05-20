@@ -64,7 +64,7 @@ class JobAgent:
         )
 
         # 1. Scraping
-        all_jobs = await self._scrape_all_portals(config)
+        all_jobs = await self._scrape_all_portals(config, profile)
         console.print(f"\n[green]✓ Vacantes encontradas: {len(all_jobs)}[/green]")
         self._emit(f"Scraping completo: {len(all_jobs)} vacantes encontradas")
 
@@ -123,32 +123,51 @@ class JobAgent:
             t = t.replace(stop, "")
         return re.sub(r"\s+", " ", t).strip()
 
-    async def _scrape_all_portals(self, config: SearchConfig) -> list[JobListing]:
+    @staticmethod
+    def _is_blacklisted(job: JobListing, profile: UserProfile) -> bool:
+        if not profile.exclude_companies:
+            return False
+        company_lower = job.company.lower()
+        return any(exc.lower() in company_lower for exc in profile.exclude_companies)
+
+    async def _scrape_all_portals(self, config: SearchConfig, profile: UserProfile) -> list[JobListing]:
         all_jobs = []
         seen_urls: set[str] = set()
         seen_keys: set[str] = set()
+        max_retries = 2
 
         for portal in config.portals:
             console.print(f"\n[cyan]Scrapeando {portal.value}...[/cyan]")
             self._emit(f"Scrapeando {portal.value}...")
-            try:
-                scraper = get_scraper(portal)
-                async with scraper as s:
-                    async for job in s.search(config):
-                        if job.url in seen_urls or self.tracker.job_exists(job.url):
-                            logger.debug(f"Duplicada (URL): {job.url}")
-                            continue
-                        key = self._title_key(job.title, job.company)
-                        if key in seen_keys:
-                            logger.debug(f"Duplicada (título): {job.title} @ {job.company}")
-                            continue
-                        seen_urls.add(job.url)
-                        seen_keys.add(key)
-                        all_jobs.append(job)
-                        console.print(f"  + {job.title} @ {job.company}")
-            except Exception as e:
-                logger.error(f"Error scrapeando {portal.value}: {e}")
-                await self.notifier.notify_error(f"Error en scraping de {portal.value}: {e}")
+            for attempt in range(max_retries + 1):
+                try:
+                    scraper = get_scraper(portal)
+                    async with scraper as s:
+                        async for job in s.search(config):
+                            if job.url in seen_urls or self.tracker.job_exists(job.url):
+                                logger.debug(f"Duplicada (URL): {job.url}")
+                                continue
+                            key = self._title_key(job.title, job.company)
+                            if key in seen_keys:
+                                logger.debug(f"Duplicada (título): {job.title} @ {job.company}")
+                                continue
+                            if self._is_blacklisted(job, profile):
+                                logger.info(f"Empresa en blacklist, ignorada: {job.company}")
+                                continue
+                            seen_urls.add(job.url)
+                            seen_keys.add(key)
+                            all_jobs.append(job)
+                            console.print(f"  + {job.title} @ {job.company}")
+                    break  # éxito
+                except Exception as e:
+                    if attempt < max_retries:
+                        wait = 5 * (attempt + 1)
+                        console.print(f"  [yellow]Error en {portal.value} (intento {attempt + 1}/{max_retries + 1}), reintentando en {wait}s...[/yellow]")
+                        logger.warning(f"Error en {portal.value} intento {attempt + 1}: {e}")
+                        await asyncio.sleep(wait)
+                    else:
+                        logger.error(f"Error scrapeando {portal.value} después de {max_retries + 1} intentos: {e}")
+                        await self.notifier.notify_error(f"Error en scraping de {portal.value}: {e}")
 
         return all_jobs
 

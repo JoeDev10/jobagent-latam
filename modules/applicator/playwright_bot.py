@@ -9,14 +9,18 @@ Flujo para cada vacante:
   5. Confirmar y verificar éxito
 """
 import asyncio
+import re
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 from playwright.async_api import Page
 
 from core import Application, ApplicationStatus, JobListing, Portal, UserProfile, get_logger
 from modules.auth import LoginManager
 from modules.scrapers.base import BaseScraper
+
+SCREENSHOTS_DIR = Path("data/screenshots")
 
 logger = get_logger(__name__)
 
@@ -134,6 +138,8 @@ class ApplicationBot(BaseScraper):
                 application.status = ApplicationStatus.PENDING
                 application.notes = "No se encontró botón de confirmación"
 
+            if application.status != ApplicationStatus.APPLIED:
+                await self._screenshot_failure(page, application)
         finally:
             await page.close()
         return application
@@ -194,6 +200,8 @@ class ApplicationBot(BaseScraper):
                 application.status = ApplicationStatus.PENDING
                 application.notes = "No se encontró botón de confirmación en Bumeran"
 
+            if application.status != ApplicationStatus.APPLIED:
+                await self._screenshot_failure(page, application)
         finally:
             await page.close()
         return application
@@ -244,6 +252,8 @@ class ApplicationBot(BaseScraper):
                 application.status = ApplicationStatus.PENDING
                 application.notes = "No se encontró botón de confirmación en ZonaJobs"
 
+            if application.status != ApplicationStatus.APPLIED:
+                await self._screenshot_failure(page, application)
         finally:
             await page.close()
         return application
@@ -256,6 +266,21 @@ class ApplicationBot(BaseScraper):
         application.status = ApplicationStatus.PENDING
         application.notes = "Indeed: aplicar manualmente (flujo variable por empresa)"
         return application
+
+    # ─── Helpers ─────────────────────────────────────────────────────────────
+
+    async def _screenshot_failure(self, page: Page, application: Application):
+        SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_title = re.sub(r"[^\w]", "_", application.job.title[:30])
+        portal = application.job.portal.value
+        path = SCREENSHOTS_DIR / f"{portal}_{safe_title}_{ts}.png"
+        try:
+            await page.screenshot(path=str(path), full_page=False)
+            logger.info(f"Screenshot guardado: {path}")
+            application.notes = (application.notes or "") + f" | Screenshot: {path.name}"
+        except Exception as e:
+            logger.warning(f"No se pudo tomar screenshot: {e}")
 
     # ─── BaseScraper stubs ────────────────────────────────────────────────────
 
