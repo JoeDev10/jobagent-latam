@@ -1,0 +1,71 @@
+# ─── Secretos (CRÍTICO — nunca subir) ────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ─── Datos personales y de runtime ───────────────────────────────────────────
+# El directorio data/ se crea al correr la app; no se versionan sus contenidos
+# (ignoramos contenidos, no el directorio en sí, para preservar .gitkeep)
+data/*
+!data/.gitkeep
+
+# Por las dudas, también explícitos:
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+data/sessions/
+data/profiles/
+data/cvs/
+data/jobagent_backup_*.db
+
+# ─── Entorno virtual de Python ───────────────────────────────────────────────
+venv/
+env/
+.venv/
+ENV/
+
+# ─── Cache de Python y herramientas ──────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+
+# ─── Builds ──────────────────────────────────────────────────────────────────
+build/
+dist/
+*.egg-info/
+*.egg
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── IDEs y editores ─────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Playwright / browsers descargados ───────────────────────────────────────
+.cache/
+playwright-report/
+test-results/
+
+# ─── Streamlit ───────────────────────────────────────────────────────────────
+.streamlit/secrets.toml
