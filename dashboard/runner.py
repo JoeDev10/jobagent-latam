@@ -31,7 +31,7 @@ def run_search(
     profile: UserProfile,
     config: SearchConfig,
     on_progress: Optional[Callable[[str], None]] = None,
-) -> list[Application]:
+) -> tuple[list[Application], list[str]]:
     """
     Corre una búsqueda completa: scraping + scoring + cartas.
     En el dashboard nunca aplicamos automáticamente desde acá — `auto_apply=False`

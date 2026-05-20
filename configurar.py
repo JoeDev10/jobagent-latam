@@ -98,6 +98,15 @@ def main():
 
     env = leer_env()
 
+    # ── Groq API Key ──────────────────────────────────────────────────────────
+    seccion("GROQ API KEY (requerida para IA)")
+    print("  Necesitas una API key de Groq para que el agente evalúe vacantes")
+    print("  y genere cartas de presentación.")
+    print("  Conseguila gratis (sin tarjeta) en: https://console.groq.com")
+    print("  → Andá a 'API Keys' → 'Create API Key' → copiá el valor")
+    print()
+    groq_key = pedir("GROQ API Key", env.get("GROQ_API_KEY", ""), secreto=True)
+
     # ── Computrabajo ──────────────────────────────────────────────────────────
     seccion("COMPUTRABAJO (ar.computrabajo.com)")
     print("  Necesitas una cuenta en ar.computrabajo.com")
@@ -144,6 +153,7 @@ def main():
     print("  Guardando configuracion...")
 
     updates = {
+        "GROQ_API_KEY":             groq_key,
         "COMPUTRABAJO_EMAIL":       ct_email,
         "COMPUTRABAJO_PASSWORD":    ct_pass,
         "BUMERAN_EMAIL":            bm_email,
@@ -161,15 +171,13 @@ def main():
     print("  ============================================")
     print()
 
-    # Verificar que la GROQ_API_KEY esta
     env_final = leer_env()
     if not env_final.get("GROQ_API_KEY"):
-        print("  AVISO: No hay GROQ_API_KEY en el .env!")
-        print("  Conseguila gratis en: https://console.groq.com")
-        print("  Agregala al .env como: GROQ_API_KEY=gsk_...")
+        print("  AVISO: No hay GROQ_API_KEY configurada")
+        print("  Sin ella, el agente no puede evaluar vacantes ni generar cartas.")
         print()
     else:
-        print("  OK - GROQ_API_KEY detectada")
+        print("  OK - GROQ_API_KEY configurada")
 
     if env_final.get("COMPUTRABAJO_EMAIL"):
         print("  OK - Computrabajo configurado")

@@ -15,6 +15,7 @@ Cómo programarlo en Windows (Task Scheduler):
   Variable de entorno: PYTHONUTF8=1
   Frecuencia: diaria a las 8:00 AM
 """
+import argparse
 import asyncio
 import sys
 from pathlib import Path
@@ -34,9 +35,16 @@ from modules.notifier import TelegramNotifier
 logger = get_logger(__name__)
 console = Console(legacy_windows=False)
 
-# ─── Configuración del modo autónomo ─────────────────────────────────────────
+# ─── Argumentos CLI ──────────────────────────────────────────────────────────
 
-PROFILE_NAME = "marcelo"
+def _parse_args() -> str:
+    parser = argparse.ArgumentParser(description="JobAgent LATAM — Modo Autónomo")
+    parser.add_argument(
+        "--perfil", "-p",
+        default="marcelo",
+        help="Nombre del perfil a usar (default: marcelo). Ejemplo: --perfil juan",
+    )
+    return parser.parse_args().perfil
 
 SEARCH_CONFIG = SearchConfig(
     keywords=["QA Analyst", "QA Tester", "QA Manual", "QA Automation", "Tester"],
@@ -53,12 +61,13 @@ AUTO_APPLY_THRESHOLD = 0.80
 
 
 async def main():
+    profile_name = _parse_args()
     notifier = TelegramNotifier()
     manager = ProfileManager()
 
-    profile = manager.load(PROFILE_NAME)
+    profile = manager.load(profile_name)
     if not profile:
-        msg = f"No se encontró el perfil '{PROFILE_NAME}'. Corré: python main.py setup"
+        msg = f"No se encontró el perfil '{profile_name}'. Corré: python main.py setup"
         console.print(f"[red]{msg}[/red]")
         await notifier.notify_error(msg)
         sys.exit(1)
