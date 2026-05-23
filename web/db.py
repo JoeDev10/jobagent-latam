@@ -1,24 +1,34 @@
 """
 Base de datos de usuarios del SaaS.
 Tablas: users, user_profiles, user_settings
-Usa sqlite3 puro — sin ORM.
+Usa sqlite3 local o Turso (SQLite en la nube) según env vars.
 """
 import json
 import os
-import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+_TURSO_URL = os.environ.get("TURSO_DATABASE_URL")
+_TURSO_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
+
+if _TURSO_URL:
+    import libsql_experimental as sqlite3
+else:
+    import sqlite3
 
 _data_dir = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent / "data"))
 DB_PATH = _data_dir / "users.db"
 
 
-def _connect() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
+def _connect():
+    if _TURSO_URL:
+        conn = sqlite3.connect(_TURSO_URL, auth_token=_TURSO_TOKEN)
+    else:
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 

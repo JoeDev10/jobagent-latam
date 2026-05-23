@@ -4,10 +4,10 @@ ApplicationTracker: persiste vacantes y aplicaciones en SQLite.
 Tablas:
   - jobs:         Vacantes encontradas por el scraper
   - applications: Aplicaciones enviadas o pendientes
+Usa sqlite3 local o Turso (SQLite en la nube) según env vars.
 """
 import json
 import os
-import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -16,15 +16,26 @@ from core import Application, ApplicationStatus, JobListing, Portal, get_logger
 
 logger = get_logger(__name__)
 
+_TURSO_JOBS_URL = os.environ.get("TURSO_JOBS_DATABASE_URL") or os.environ.get("TURSO_DATABASE_URL")
+_TURSO_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
+
+if _TURSO_JOBS_URL:
+    import libsql_experimental as sqlite3
+else:
+    import sqlite3
+
 _data_dir = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent.parent / "data"))
 DB_PATH = _data_dir / "jobagent.db"
 
 
-def _connect() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
+def _connect():
+    if _TURSO_JOBS_URL:
+        conn = sqlite3.connect(_TURSO_JOBS_URL, auth_token=_TURSO_TOKEN)
+    else:
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 

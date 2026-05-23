@@ -2,12 +2,8 @@ services:
   - type: web
     name: jobagent-latam
     runtime: docker
-    plan: starter
+    plan: free
     healthCheckPath: /
-    disk:
-      name: vacantia-data
-      mountPath: /app/data
-      sizeGB: 1
     envVars:
       - key: SECRET_KEY
         generateValue: true
@@ -26,4 +22,8 @@ services:
       - key: SUPPORT_WHATSAPP
         sync: false
       - key: SUPPORT_EMAIL
+        sync: false
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
         sync: false
