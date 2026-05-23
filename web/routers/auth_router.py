@@ -18,22 +18,22 @@ async def _send_reset_email(to_email: str, reset_link: str):
     api_key = os.environ.get("RESEND_API_KEY", "")
     if not api_key:
         return
-    from_addr = os.environ.get("RESEND_FROM", "JobAgent LATAM <noreply@jobagentlatam.com>")
+    from_addr = os.environ.get("RESEND_FROM", "VacantIA <noreply@vacantia.app>")
     html = (
         f"<p>Hola,</p>"
-        f"<p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en JobAgent LATAM.</p>"
+        f"<p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en VacantIA.</p>"
         f"<p><a href='{reset_link}' style='background:#7c3aed;color:#fff;padding:12px 24px;"
         f"border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block'>"
         f"Restablecer contraseña</a></p>"
         f"<p>Este enlace vence en 2 horas. Si no solicitaste este cambio, ignorá este email.</p>"
-        f"<p>— Equipo JobAgent LATAM</p>"
+        f"<p>— Equipo VacantIA</p>"
     )
     try:
         async with httpx.AsyncClient(timeout=8) as client:
             await client.post(
                 "https://api.resend.com/emails",
                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"from": from_addr, "to": [to_email], "subject": "Restablecé tu contraseña — JobAgent LATAM", "html": html},
+                json={"from": from_addr, "to": [to_email], "subject": "Restablecé tu contraseña — VacantIA", "html": html},
             )
     except Exception:
         pass

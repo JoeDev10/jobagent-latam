@@ -1,5 +1,5 @@
 """
-JobAgent LATAM — Punto de entrada principal.
+VacantIA — Punto de entrada principal.
 
 Uso:
   python main.py setup          → Configurar perfil desde CV

@@ -44,7 +44,7 @@
   </div>
 
   <!-- Upgrade form -->
-  <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-6" x-data="{ email: '', plan: 'pro', loading: false, msg: '', err: '' }">
+  <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-6" x-data="upgradePanel()">
     <h2 class="font-bold text-white mb-4">Cambiar plan de usuario</h2>
     <div class="flex gap-3">
       <input type="email" x-model="email" placeholder="email@usuario.com"
@@ -60,21 +60,6 @@
     </div>
     <p x-show="msg" x-text="msg" class="text-emerald-400 text-sm mt-2"></p>
     <p x-show="err" x-text="err" class="text-red-400 text-sm mt-2"></p>
-
-    <script>
-    function upgrade() {
-      this.loading = true; this.msg = ''; this.err = '';
-      fetch('/api/admin/upgrade', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': '{{ admin_secret }}' },
-        body: JSON.stringify({ email: this.email, plan: this.plan })
-      }).then(r => r.json()).then(d => {
-        if (d.ok) { this.msg = 'Plan actualizado a ' + this.plan + ' para ' + this.email; this.email = ''; }
-        else { this.err = d.error || 'Error desconocido'; }
-      }).catch(() => { this.err = 'Error de conexion'; })
-      .finally(() => { this.loading = false; });
-    }
-    </script>
   </div>
 
   <!-- Users table -->
@@ -124,6 +109,24 @@
 <script>
 function adminPanel() {
   return { search: '' }
+}
+
+function upgradePanel() {
+  return {
+    email: '', plan: 'pro', loading: false, msg: '', err: '',
+    upgrade() {
+      this.loading = true; this.msg = ''; this.err = '';
+      fetch('/api/admin/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': '{{ admin_secret }}' },
+        body: JSON.stringify({ email: this.email, plan: this.plan })
+      }).then(r => r.json()).then(d => {
+        if (d.ok) { this.msg = 'Plan actualizado a ' + this.plan + ' para ' + this.email; this.email = ''; }
+        else { this.err = d.error || 'Error desconocido'; }
+      }).catch(() => { this.err = 'Error de conexion'; })
+      .finally(() => { this.loading = false; });
+    }
+  }
 }
 </script>
 </body>

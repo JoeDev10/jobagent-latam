@@ -33,14 +33,21 @@ async def dashboard(request: Request):
     stats = tracker.get_stats(user_id=uid)
     recent = tracker.get_applications(user_id=uid)[:10]
     profile = db.get_profile(uid)
+    settings = db.get_settings(uid)
 
     runs_used = user.get("runs_used") or 0 if user else 0
+    has_credentials = bool(
+        settings.get("computrabajo_email") or
+        settings.get("bumeran_email") or
+        settings.get("zonajobs_email")
+    )
 
     return templates.TemplateResponse(request, "app/dashboard.html", {
         "user": user,
         "stats": stats,
         "recent_apps": recent,
         "has_profile": profile is not None,
+        "has_credentials": has_credentials,
         "runs_used": runs_used,
         "free_runs_limit": FREE_RUNS_LIMIT,
         "active": "dashboard",
@@ -87,10 +94,18 @@ async def search_page(request: Request):
     settings = db.get_settings(user_token["sub"])
     profile = db.get_profile(user_token["sub"]) or {}
     default_keywords = ", ".join(profile.get("target_roles", [])) or "QA Analyst, QA Tester, Tester de Software"
+    has_credentials = bool(
+        settings.get("computrabajo_email") or
+        settings.get("bumeran_email") or
+        settings.get("zonajobs_email")
+    )
+    ready = request.query_params.get("ready") == "1"
     return templates.TemplateResponse(request, "app/search.html", {
         "user": user,
         "settings": settings,
         "default_keywords": default_keywords,
+        "has_credentials": has_credentials,
+        "ready": ready,
         "active": "search",
     })
 
@@ -144,8 +159,10 @@ async def settings_page(request: Request):
 
     user = db.get_user_by_id(user_token["sub"])
     settings = db.get_settings(user_token["sub"])
+    setup = request.query_params.get("setup") == "1"
     return templates.TemplateResponse(request, "app/settings.html", {
         "user": user,
         "settings": settings,
+        "setup": setup,
         "active": "settings",
     })

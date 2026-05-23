@@ -74,7 +74,7 @@ def test_settings_load():
     from core import settings
     # Estos son requeridos por el agente
     assert settings.groq_api_key, "GROQ_API_KEY no está configurada en .env"
-    assert settings.app_name == "JobAgent LATAM"
+    assert settings.app_name == "VacantIA"
     # Estos son opcionales pero deberían existir como atributos
     assert hasattr(settings, "computrabajo_email")
     assert hasattr(settings, "telegram_bot_token")

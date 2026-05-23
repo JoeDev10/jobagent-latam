@@ -399,7 +399,8 @@ class ApplicationTracker:
 
         with _connect() as conn:
             total_jobs = conn.execute(
-                f"SELECT COUNT(*) FROM jobs WHERE 1=1 {uid_clause}", uid_params
+                f"SELECT COUNT(DISTINCT a.job_id) FROM applications a WHERE 1=1 {uid_clause}",
+                uid_params,
             ).fetchone()[0]
 
             total_apps = conn.execute(

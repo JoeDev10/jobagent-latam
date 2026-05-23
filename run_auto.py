@@ -1,5 +1,5 @@
 """
-Modo autónomo de JobAgent LATAM.
+Modo autónomo de VacantIA.
 
 Diseñado para correr sin intervención humana (scheduled task, cron, etc.).
 
@@ -38,7 +38,7 @@ console = Console(legacy_windows=False)
 # ─── Argumentos CLI ──────────────────────────────────────────────────────────
 
 def _parse_args() -> str:
-    parser = argparse.ArgumentParser(description="JobAgent LATAM — Modo Autónomo")
+    parser = argparse.ArgumentParser(description="VacantIA — Modo Autónomo")
     parser.add_argument(
         "--perfil", "-p",
         default="marcelo",
@@ -72,7 +72,7 @@ async def main():
         await notifier.notify_error(msg)
         sys.exit(1)
 
-    console.rule(f"[bold blue]JobAgent LATAM — Modo Autónomo[/bold blue]")
+    console.rule(f"[bold blue]VacantIA — Modo Autónomo[/bold blue]")
     console.print(f"Perfil: {profile.full_name}")
     console.print(f"Score mínimo para aplicar automáticamente: {AUTO_APPLY_THRESHOLD:.0%}")
     console.print()
@@ -86,7 +86,7 @@ async def main():
         await agent.run(profile, config, interactive=False)
     except Exception as e:
         logger.error(f"Error en run autónomo: {e}")
-        await notifier.notify_error(f"Error crítico en JobAgent:\n{str(e)[:500]}")
+        await notifier.notify_error(f"Error crítico en VacantIA:\n{str(e)[:500]}")
         raise
 
 

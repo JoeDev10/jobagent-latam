@@ -1,5 +1,5 @@
 """
-FastAPI app principal del SaaS JobAgent LATAM.
+FastAPI app principal del SaaS VacantIA.
 """
 import sys
 from pathlib import Path
@@ -20,7 +20,7 @@ from web.routers import auth_router, app_router, api_router, admin_router
 # Inicializar DB de usuarios
 db.init_db()
 
-app = FastAPI(title="JobAgent LATAM", docs_url=None, redoc_url=None)
+app = FastAPI(title="VacantIA", docs_url=None, redoc_url=None)
 
 # Static files
 STATIC_DIR = Path(__file__).parent / "static"

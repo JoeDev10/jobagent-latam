@@ -1,12 +1,12 @@
 @echo off
 chcp 65001 >nul
-title JobAgent LATAM
+title VacantIA
 
 cd /d "%~dp0"
 
 echo.
 echo   ==========================================
-echo    JobAgent LATAM - Iniciando servidor...
+echo    VacantIA - Iniciando servidor...
 echo   ==========================================
 echo.
 

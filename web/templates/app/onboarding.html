@@ -283,7 +283,7 @@ function onboarding() {
         if (r.ok) {
           try { localStorage.removeItem(_LS_KEY); } catch {}
           this.saved = true;
-          setTimeout(() => { window.location.href = '/app/dashboard'; }, 1500);
+          setTimeout(() => { window.location.href = '/app/settings?setup=1'; }, 1500);
         }
       } finally {
         this.saving = false;

@@ -35,7 +35,7 @@ from dashboard.runner import apply_one, run_search
 # ─── Configuración ────────────────────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="JobAgent LATAM",
+    page_title="VacantIA",
     page_icon="🎯",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -67,7 +67,7 @@ def _current_profile() -> UserProfile | None:
 # ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.title("🎯 JobAgent LATAM")
+    st.title("🎯 VacantIA")
     st.markdown("---")
 
     page = st.radio(

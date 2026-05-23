@@ -10,7 +10,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "JobAgent LATAM"
+    app_name: str = "VacantIA"
     debug: bool = False
     log_level: str = "INFO"
 

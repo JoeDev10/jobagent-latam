@@ -1,5 +1,5 @@
 """
-Asistente de configuracion de JobAgent LATAM.
+Asistente de configuracion de VacantIA.
 Pide credenciales de forma segura (sin mostrarlas en pantalla)
 y las escribe al archivo .env.
 
@@ -88,7 +88,7 @@ def seccion(titulo: str):
 def main():
     print()
     print("  ============================================")
-    print("    JobAgent LATAM - Configuracion")
+    print("    VacantIA - Configuracion")
     print("  ============================================")
     print()
     print("  Este asistente configura tus credenciales.")

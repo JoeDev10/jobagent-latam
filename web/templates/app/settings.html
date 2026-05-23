@@ -4,6 +4,20 @@
 {% block content %}
 <div class="max-w-2xl mx-auto" x-data="settingsPage()">
 
+  {% if setup %}
+  <!-- Banner setup mode -->
+  <div class="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl p-5 mb-6 text-white flex items-start gap-4">
+    <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+      <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+    </div>
+    <div>
+      <div class="text-xs font-semibold text-violet-200 mb-0.5">Último paso — Paso 2 de 2</div>
+      <div class="font-black text-lg leading-tight mb-1">Conectá tus cuentas de los portales</div>
+      <p class="text-violet-100 text-sm">Agregá al menos un portal para que el agente pueda buscar vacantes. Con Computrabajo ya alcanza para empezar.</p>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="mb-8">
     <h1 class="text-2xl font-black text-slate-900">Configuración</h1>
     <p class="text-slate-400 mt-1 text-sm">Credenciales de portales, API keys y preferencias del agente.</p>
@@ -212,9 +226,11 @@
 {% block scripts %}
 <script>
 function settingsPage() {
+  const setupMode = new URLSearchParams(window.location.search).get('setup') === '1';
   return {
     saving: false,
     saved: false,
+    setupMode,
     form: {
       computrabajo_email:    '{{ settings.get("computrabajo_email","") }}',
       computrabajo_password: '{{ settings.get("computrabajo_password","") }}',
@@ -239,7 +255,11 @@ function settingsPage() {
         });
         if (r.ok) {
           this.saved = true;
-          setTimeout(() => this.saved = false, 3000);
+          if (this.setupMode) {
+            setTimeout(() => { window.location.href = '/app/search?ready=1'; }, 1200);
+          } else {
+            setTimeout(() => this.saved = false, 3000);
+          }
         }
       } finally {
         this.saving = false;

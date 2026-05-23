@@ -1,5 +1,5 @@
 """
-Punto de entrada del SaaS JobAgent LATAM.
+Punto de entrada del SaaS VacantIA.
 
 Uso:
     python main_web.py                  # inicia en localhost:8000
@@ -45,7 +45,7 @@ def _start_tunnel(port: int):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="JobAgent LATAM - Servidor Web")
+    parser = argparse.ArgumentParser(description="VacantIA - Servidor Web")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--no-browser", action="store_true")
@@ -57,7 +57,7 @@ def main():
     local_url = f"http://{args.host}:{args.port}"
     print()
     print("  ==========================================")
-    print("   JobAgent LATAM  -  Servidor Web")
+    print("   VacantIA  -  Servidor Web")
     print("  ==========================================")
     print()
     print(f"  URL local: {local_url}")

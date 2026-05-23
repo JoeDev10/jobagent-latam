@@ -50,7 +50,7 @@ class TelegramNotifier:
 
     async def notify_search_started(self, portals: list[str], keywords: list[str]):
         text = (
-            f"<b>JobAgent inicio busqueda</b>\n\n"
+            f"<b>VacantIA inicio busqueda</b>\n\n"
             f"Portales: {', '.join(portals)}\n"
             f"Keywords: {', '.join(keywords)}"
         )
@@ -105,7 +105,7 @@ class TelegramNotifier:
     async def notify_daily_summary(self, stats: dict):
         by_status = stats.get("by_status", {})
         text = (
-            f"<b>Resumen diario JobAgent</b>\n\n"
+            f"<b>Resumen diario VacantIA</b>\n\n"
             f"Vacantes analizadas: {stats.get('total_jobs_scraped', 0)}\n"
             f"Aplicaciones totales: {stats.get('total_applications', 0)}\n"
             f"Score promedio: {stats.get('avg_relevance_score', 0):.0%}\n\n"
@@ -126,7 +126,7 @@ class TelegramNotifier:
         await self.send(text)
 
     async def notify_error(self, message: str):
-        text = f"<b>Error en JobAgent</b>\n\n{message}"
+        text = f"<b>Error en VacantIA</b>\n\n{message}"
         await self.send(text)
 
     # ─── Helpers ──────────────────────────────────────────────────────────────

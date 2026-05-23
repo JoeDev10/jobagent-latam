@@ -389,9 +389,13 @@ function vacantesPage() {
         const r = await fetch(`/api/applications/${app.id}/cover_letter`, { method: 'POST' });
         const data = await r.json();
         this.modal.loading = false;
-        const letter = data.letter || data.error || 'No se pudo generar la carta.';
-        this.modal.text = letter;
-        app.cover_letter = letter;
+        if (data.letter) {
+          this.modal.text = data.letter;
+          app.cover_letter = data.letter;
+        } else {
+          this.modal.text = data.error || 'No se pudo generar la carta.';
+          // no guardamos el error en app.cover_letter para poder reintentar
+        }
       } catch(e) {
         this.modal.loading = false;
         this.modal.text = 'Error de conexion. Intentalo de nuevo.';
