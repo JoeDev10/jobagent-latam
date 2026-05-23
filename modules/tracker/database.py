@@ -363,18 +363,27 @@ class ApplicationTracker:
         status: Optional[ApplicationStatus] = None,
         user_id: Optional[int] = None,
     ) -> list[dict]:
-        """Devuelve aplicaciones filtradas. user_id=None devuelve todas (modo legacy)."""
+        """Devuelve aplicaciones con datos del job (JOIN). user_id=None devuelve todas."""
         conditions, params = [], []
         if status:
-            conditions.append("status = ?")
+            conditions.append("a.status = ?")
             params.append(status.value)
         if user_id is not None:
-            conditions.append("user_id = ?")
+            conditions.append("a.user_id = ?")
             params.append(user_id)
-        query = "SELECT * FROM applications"
+        query = """
+            SELECT a.*,
+                   j.relevance_reason,
+                   j.match_strengths,
+                   j.match_gaps,
+                   j.modality AS job_modality,
+                   j.description AS job_description
+            FROM applications a
+            LEFT JOIN jobs j ON a.job_id = j.id
+        """
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
-        query += " ORDER BY created_at DESC"
+        query += " ORDER BY COALESCE(a.relevance_score, 0) DESC, a.created_at DESC"
 
         with _connect() as conn:
             rows = conn.execute(query, params).fetchall()

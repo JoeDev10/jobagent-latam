@@ -1,41 +1,56 @@
 {% extends "app/layout.html" %}
 {% block title %}Mis Vacantes — JobAgent LATAM{% endblock %}
 
-{% block content %}
-<div x-data="appsPage()">
+{% block head %}
+<style>
+  .score-high   { background:#d1fae5; color:#065f46; }
+  .score-mid    { background:#fef3c7; color:#92400e; }
+  .score-low    { background:#fee2e2; color:#991b1b; }
+  .card-vacancy { transition: box-shadow 0.15s ease, transform 0.15s ease; }
+  .card-vacancy:hover { box-shadow: 0 8px 30px rgba(124,58,237,0.10); transform: translateY(-2px); }
+</style>
+{% endblock %}
 
-  <!-- Modal carta de presentación -->
-  <div x-show="letterModal.open" x-cloak
+{% block content %}
+<div x-data="vacantesPage()" x-init="init()">
+
+  <!-- Modal carta de presentacion -->
+  <div x-show="modal.open" x-cloak
     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 flex flex-col gap-4 max-h-[90vh]">
-      <div class="flex items-center justify-between">
-        <h2 class="text-lg font-black text-slate-900">Carta de presentación</h2>
-        <button @click="letterModal.open=false" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col gap-4 max-h-[90vh] overflow-hidden">
+      <div class="flex items-start justify-between px-6 pt-6 pb-0">
+        <div>
+          <h2 class="text-lg font-black text-slate-900">Carta de presentacion</h2>
+          <p class="text-xs text-slate-400 mt-0.5" x-text="modal.subtitle"></p>
+        </div>
+        <button @click="modal.open=false" class="p-2 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0">
           <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
-      <p class="text-xs text-slate-400" x-text="letterModal.job"></p>
-      <template x-if="letterModal.loading">
-        <div class="flex items-center justify-center py-12 gap-3 text-slate-400">
-          <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-          <span class="text-sm">Generando carta con IA...</span>
-        </div>
-      </template>
-      <template x-if="!letterModal.loading">
-        <textarea x-model="letterModal.text" rows="14"
-          class="w-full text-sm text-slate-700 border border-slate-200 rounded-xl p-4 resize-none focus:outline-none focus:border-violet-400 overflow-y-auto font-sans leading-relaxed"></textarea>
-      </template>
-      <div class="flex gap-3 justify-end">
-        <button @click="copyLetter()" :disabled="letterModal.loading"
-          class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
+      <div class="px-6 flex-1 overflow-y-auto">
+        <template x-if="modal.loading">
+          <div class="flex flex-col items-center justify-center py-12 gap-3 text-slate-400">
+            <svg class="w-8 h-8 animate-spin text-violet-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            <span class="text-sm font-medium">Generando carta personalizada con IA...</span>
+            <span class="text-xs text-slate-300">Esto tarda unos segundos</span>
+          </div>
+        </template>
+        <template x-if="!modal.loading">
+          <textarea x-model="modal.text" rows="16"
+            class="w-full text-sm text-slate-700 border border-slate-200 rounded-xl p-4 resize-none focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 font-sans leading-relaxed"></textarea>
+        </template>
+      </div>
+      <div class="flex items-center gap-3 px-6 pb-6 pt-2 border-t border-slate-100">
+        <button @click="copyLetter()" :disabled="modal.loading || !modal.text"
+          class="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors disabled:opacity-40">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-          <span x-text="letterModal.copied ? '¡Copiado!' : 'Copiar'"></span>
+          <span x-text="modal.copied ? 'Copiado!' : 'Copiar texto'"></span>
         </button>
-        <template x-if="letterModal.url">
-          <a :href="letterModal.url" target="_blank"
-            class="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors">
+        <template x-if="modal.url">
+          <a :href="modal.url" target="_blank" @click="markApplied(modal.appId)"
+            class="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-bold transition-colors shadow-lg shadow-violet-200">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-            Ir a aplicar
+            Ir a aplicar ahora
           </a>
         </template>
       </div>
@@ -43,149 +58,231 @@
   </div>
 
   <!-- Header -->
-  <div class="flex items-center justify-between mb-8">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
     <div>
       <h1 class="text-2xl font-black text-slate-900">Mis Vacantes</h1>
-      <p class="text-slate-400 mt-1 text-sm">Vacantes encontradas y rankeadas por el agente. Revisá, generá tu carta y aplicá.</p>
+      <p class="text-slate-400 mt-1 text-sm">Encontradas y rankeadas por el agente. Revisa, genera tu carta y aplica.</p>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 flex-shrink-0">
       <a href="/api/applications/export"
-        class="inline-flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors">
-        <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-        Exportar CSV
+        class="inline-flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        CSV
       </a>
-      <a href="/app/search" class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-violet-200">
+      <a href="/app/search" class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-violet-200">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        Descubrir mas
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats rápidas -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+    <div class="bg-white rounded-2xl border border-slate-100 p-4 text-center">
+      <div class="text-2xl font-black text-slate-900" x-text="apps.length"></div>
+      <div class="text-xs text-slate-400 font-medium mt-0.5">Total vacantes</div>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-100 p-4 text-center">
+      <div class="text-2xl font-black text-emerald-600" x-text="apps.filter(a=>a.status==='aplicada').length"></div>
+      <div class="text-xs text-slate-400 font-medium mt-0.5">Aplicadas</div>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-100 p-4 text-center">
+      <div class="text-2xl font-black text-blue-600" x-text="apps.filter(a=>a.status==='entrevista').length"></div>
+      <div class="text-xs text-slate-400 font-medium mt-0.5">Entrevistas</div>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-100 p-4 text-center">
+      <div class="text-2xl font-black text-violet-600" x-text="avgScore()"></div>
+      <div class="text-xs text-slate-400 font-medium mt-0.5">Match promedio</div>
+    </div>
+  </div>
+
+  <!-- Filtros y busqueda -->
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+    <!-- Busqueda -->
+    <div class="relative flex-1 w-full">
+      <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      <input type="text" x-model="search" placeholder="Buscar por empresa, rol o portal..."
+        class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all"/>
+    </div>
+    <!-- Estado filter -->
+    <div class="flex flex-wrap gap-2">
+      <template x-for="f in filters" :key="f.key">
+        <button @click="activeFilter=f.key"
+          class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all"
+          :class="activeFilter===f.key ? 'bg-violet-600 text-white shadow-md shadow-violet-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'">
+          <span x-text="f.label"></span>
+          <span class="ml-1 opacity-70" x-text="'('+countFor(f.key)+')'"></span>
+        </button>
+      </template>
+    </div>
+    <!-- Sort -->
+    <select x-model="sortBy" class="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50 outline-none focus:border-violet-400 text-slate-600 font-medium">
+      <option value="score">Mayor match</option>
+      <option value="date">Mas recientes</option>
+      <option value="company">Empresa</option>
+    </select>
+  </div>
+
+  <!-- Empty state -->
+  <template x-if="filtered.length === 0 && apps.length === 0">
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-16 text-center">
+      <div class="w-16 h-16 bg-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+      <h3 class="text-lg font-black text-slate-800 mb-2">Todavia no hay vacantes</h3>
+      <p class="text-slate-400 text-sm mb-6 max-w-xs mx-auto">Ejecuta tu primera busqueda y el agente va a encontrar las mejores oportunidades para vos.</p>
+      <a href="/app/search" class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-6 py-3 rounded-xl font-bold text-sm transition-colors shadow-lg shadow-violet-200">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-        Nueva búsqueda
+        Descubrir vacantes ahora
       </a>
     </div>
-  </div>
+  </template>
 
-  <!-- Stats chips -->
-  {% set by_status = stats.by_status %}
-  <div class="flex flex-wrap gap-3 mb-6">
-    <button @click="filter=''" class="px-4 py-1.5 rounded-full text-sm font-semibold transition-all"
-      :class="filter==='' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">
-      Todas ({{ stats.total_applications }})
-    </button>
-    {% for st, label, cls in [
-      ('aplicada','Aplicadas','emerald'),
-      ('pendiente','Pendientes','amber'),
-      ('entrevista','Entrevistas','blue'),
-      ('oferta','Ofertas','violet'),
-      ('rechazada','Rechazadas','red'),
-      ('descartada','Descartadas','slate'),
-    ] %}
-    {% if by_status.get(st, 0) > 0 %}
-    <button @click="filter='{{ st }}'" class="px-4 py-1.5 rounded-full text-sm font-semibold transition-all"
-      :class="filter==='{{ st }}' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">
-      {{ label }} ({{ by_status.get(st, 0) }})
-    </button>
-    {% endif %}
-    {% endfor %}
-  </div>
-
-  <!-- Search bar -->
-  <div class="relative mb-6">
-    <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-    <input type="text" x-model="search" placeholder="Buscar por empresa, cargo o portal..."
-      class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100 transition-all"/>
-  </div>
-
-  <!-- Table -->
-  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="w-full">
-        <thead>
-          <tr class="border-b border-slate-100">
-            <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Vacante</th>
-            <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide hidden md:table-cell">Portal</th>
-            <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide hidden lg:table-cell">Match</th>
-            <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Estado</th>
-            <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide hidden xl:table-cell">Fecha</th>
-            <th class="px-5 py-3.5 text-right text-xs font-semibold text-slate-400 uppercase tracking-wide">Acciones</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-50">
-          <template x-for="app in filtered" :key="app.id">
-            <tr class="hover:bg-slate-50/50 transition-colors">
-              <td class="px-5 py-4">
-                <div class="font-semibold text-slate-900 text-sm" x-text="app.title || 'Sin título'"></div>
-                <div class="text-xs text-slate-400 mt-0.5" x-text="(app.company || '—') + ' · ' + (app.location || 'Argentina')"></div>
-              </td>
-              <td class="px-5 py-4 hidden md:table-cell">
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold"
-                  :class="{
-                    'bg-orange-100 text-orange-700': app.portal==='computrabajo',
-                    'bg-blue-100 text-blue-700': app.portal==='bumeran',
-                    'bg-green-100 text-green-700': app.portal==='zonajobs',
-                    'bg-slate-100 text-slate-600': !['computrabajo','bumeran','zonajobs'].includes(app.portal),
-                  }" x-text="app.portal || '—'"></span>
-              </td>
-              <td class="px-5 py-4 hidden lg:table-cell">
-                <template x-if="app.relevance_score">
-                  <div class="flex items-center gap-2">
-                    <div class="flex-1 bg-slate-100 rounded-full h-1.5 w-16">
-                      <div class="h-1.5 rounded-full"
-                        :class="app.relevance_score >= 0.8 ? 'bg-emerald-500' : app.relevance_score >= 0.6 ? 'bg-amber-500' : 'bg-red-400'"
-                        :style="`width:${app.relevance_score*100}%`"></div>
-                    </div>
-                    <span class="text-xs font-bold text-slate-600" x-text="Math.round(app.relevance_score*100)+'%'"></span>
-                  </div>
-                </template>
-                <template x-if="!app.relevance_score"><span class="text-slate-300 text-xs">—</span></template>
-              </td>
-              <td class="px-5 py-4">
-                <span class="px-2.5 py-1 rounded-full text-xs font-semibold" :class="'status-'+app.status" x-text="app.status || '—'"></span>
-              </td>
-              <td class="px-5 py-4 hidden xl:table-cell">
-                <span class="text-xs text-slate-400" x-text="app.created_at ? app.created_at.slice(0,10) : '—'"></span>
-              </td>
-              <td class="px-5 py-4 text-right">
-                <div class="flex items-center justify-end gap-2">
-                  <!-- Generar carta -->
-                  <button @click="openLetter(app)"
-                    class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded-lg transition-colors border border-violet-200 hover:border-violet-300"
-                    title="Generar carta de presentación con IA">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                    Carta IA
-                  </button>
-                  <!-- Aplicar -->
-                  <template x-if="app.url && app.status !== 'aplicada'">
-                    <button @click="markApplied(app)"
-                      class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors border border-emerald-200 hover:border-emerald-300"
-                      title="Marcar como aplicada">
-                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                      Aplicar
-                    </button>
-                  </template>
-                  <!-- Status dropdown -->
-                  <div class="relative" x-data="{open:false}">
-                    <button @click="open=!open" class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors" title="Cambiar estado">
-                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
-                    </button>
-                    <div x-show="open" x-cloak @click.away="open=false"
-                      class="absolute right-0 top-8 bg-white border border-slate-200 rounded-xl shadow-xl z-10 py-1 min-w-36">
-                      <template x-for="st in ['aplicada','pendiente','entrevista','oferta','rechazada','descartada']" :key="st">
-                        <button @click="updateStatus(app.id, st); open=false"
-                          class="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 transition-colors capitalize" x-text="st"></button>
-                      </template>
-                    </div>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </template>
-          <template x-if="filtered.length === 0">
-            <tr>
-              <td colspan="6" class="px-5 py-16 text-center text-slate-400 text-sm">
-                No hay aplicaciones que coincidan con el filtro.
-              </td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
+  <template x-if="filtered.length === 0 && apps.length > 0">
+    <div class="bg-white rounded-2xl border border-slate-100 p-12 text-center text-slate-400 text-sm">
+      No hay vacantes que coincidan con el filtro.
     </div>
+  </template>
+
+  <!-- Card grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <template x-for="app in filtered" :key="app.id">
+      <div class="card-vacancy bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col"
+        :class="app.status === 'descartada' ? 'opacity-50' : ''">
+
+        <!-- Card top bar -->
+        <div class="px-5 pt-4 pb-3 flex items-start justify-between gap-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <!-- Portal badge -->
+            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold"
+              :class="{
+                'bg-orange-100 text-orange-700': app.portal==='computrabajo',
+                'bg-blue-100 text-blue-700': app.portal==='bumeran',
+                'bg-emerald-100 text-emerald-700': app.portal==='zonajobs',
+                'bg-slate-100 text-slate-600': !['computrabajo','bumeran','zonajobs'].includes(app.portal),
+              }" x-text="(app.portal||'portal').toUpperCase()"></span>
+            <!-- Modality -->
+            <template x-if="app.job_modality && app.job_modality !== 'cualquiera'">
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600"
+                x-text="app.job_modality==='remoto'?'Remoto':app.job_modality==='hibrido'?'Hibrido':'Presencial'"></span>
+            </template>
+            <!-- Status chip -->
+            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold"
+              :class="'status-'+app.status" x-text="app.status||'pendiente'"></span>
+          </div>
+          <!-- Score badge -->
+          <template x-if="app.relevance_score">
+            <div class="flex-shrink-0 flex flex-col items-center px-3 py-1.5 rounded-xl font-black text-sm"
+              :class="app.relevance_score>=0.8?'score-high':app.relevance_score>=0.65?'score-mid':'score-low'">
+              <span x-text="Math.round(app.relevance_score*100)+'%'"></span>
+              <span class="text-xs font-medium opacity-70">match</span>
+            </div>
+          </template>
+        </div>
+
+        <!-- Job info -->
+        <div class="px-5 pb-3">
+          <h2 class="font-black text-slate-900 text-base leading-snug mb-1" x-text="app.title||'Sin titulo'"></h2>
+          <div class="flex items-center gap-1.5 text-sm text-slate-500 flex-wrap">
+            <span class="font-semibold text-slate-700" x-text="app.company||'Empresa'"></span>
+            <span class="text-slate-300">·</span>
+            <span x-text="app.location||'Argentina'"></span>
+            <template x-if="app.salary_range">
+              <span class="text-slate-300">·</span>
+            </template>
+            <template x-if="app.salary_range">
+              <span class="text-emerald-600 font-semibold text-xs" x-text="app.salary_range"></span>
+            </template>
+          </div>
+        </div>
+
+        <!-- AI reason -->
+        <template x-if="app.relevance_reason">
+          <div class="mx-5 mb-3 bg-violet-50 border border-violet-100 rounded-xl px-3.5 py-2.5">
+            <div class="flex items-start gap-2">
+              <svg class="w-3.5 h-3.5 text-violet-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+              <p class="text-xs text-violet-700 leading-relaxed" x-text="app.relevance_reason"></p>
+            </div>
+          </div>
+        </template>
+
+        <!-- Match strengths -->
+        <template x-if="parseStrengths(app.match_strengths).length > 0">
+          <div class="px-5 pb-3">
+            <div class="flex flex-wrap gap-1.5">
+              <template x-for="s in parseStrengths(app.match_strengths).slice(0,3)" :key="s">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-lg">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                  <span x-text="s"></span>
+                </span>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <!-- Spacer -->
+        <div class="flex-1"></div>
+
+        <!-- Actions -->
+        <div class="px-5 py-3.5 border-t border-slate-50 flex items-center gap-2 flex-wrap">
+          <!-- Ver vacante -->
+          <template x-if="app.url">
+            <a :href="app.url" target="_blank"
+              class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+              Ver vacante
+            </a>
+          </template>
+
+          <!-- Carta IA -->
+          <button @click="openLetter(app)"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors border border-violet-200">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            <span x-text="app.cover_letter ? 'Ver carta' : 'Carta IA'"></span>
+          </button>
+
+          <!-- Aplicar -->
+          <template x-if="app.status !== 'aplicada' && app.status !== 'descartada'">
+            <button @click="apply(app)"
+              class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors shadow-sm">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              Marcar como aplicada
+            </button>
+          </template>
+
+          <!-- Spacer -->
+          <div class="flex-1"></div>
+
+          <!-- Status dropdown -->
+          <div class="relative" x-data="{open:false}">
+            <button @click="open=!open"
+              class="inline-flex items-center gap-1 px-2.5 py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Cambiar estado">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
+            </button>
+            <div x-show="open" x-cloak @click.away="open=false"
+              class="absolute right-0 bottom-10 bg-white border border-slate-200 rounded-xl shadow-xl z-20 py-1.5 min-w-40">
+              <div class="px-3 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">Cambiar estado</div>
+              <template x-for="st in statuses" :key="st.key">
+                <button @click="updateStatus(app.id, st.key); open=false"
+                  class="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 transition-colors flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full flex-shrink-0"
+                    :class="{
+                      'bg-emerald-500': st.key==='aplicada',
+                      'bg-amber-400': st.key==='pendiente',
+                      'bg-blue-500': st.key==='entrevista',
+                      'bg-violet-500': st.key==='oferta',
+                      'bg-red-400': st.key==='rechazada',
+                      'bg-slate-300': st.key==='descartada',
+                    }"></span>
+                  <span x-text="st.label" class="capitalize"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 
 </div>
@@ -193,23 +290,75 @@
 
 {% block scripts %}
 <script>
-function appsPage() {
+function vacantesPage() {
   return {
-    filter: '',
     search: '',
+    activeFilter: '',
+    sortBy: 'score',
     apps: {{ applications | tojson }},
-    letterModal: { open: false, loading: false, text: '', job: '', url: '', copied: false },
+    modal: { open: false, loading: false, text: '', subtitle: '', url: '', appId: '', copied: false },
+
+    filters: [
+      { key: '',           label: 'Todas' },
+      { key: 'pendiente',  label: 'Por revisar' },
+      { key: 'aplicada',   label: 'Aplicadas' },
+      { key: 'entrevista', label: 'Entrevistas' },
+      { key: 'oferta',     label: 'Ofertas' },
+      { key: 'rechazada',  label: 'Rechazadas' },
+      { key: 'descartada', label: 'Descartadas' },
+    ],
+    statuses: [
+      { key: 'pendiente',  label: 'Por revisar' },
+      { key: 'aplicada',   label: 'Aplicada' },
+      { key: 'entrevista', label: 'Entrevista' },
+      { key: 'oferta',     label: 'Oferta recibida' },
+      { key: 'rechazada',  label: 'Rechazada' },
+      { key: 'descartada', label: 'Descartar' },
+    ],
+
+    init() {
+      // default: ocultar descartadas
+      this.activeFilter = '';
+    },
 
     get filtered() {
-      return this.apps.filter(a => {
-        const matchStatus = !this.filter || a.status === this.filter;
-        const q = this.search.toLowerCase();
-        const matchSearch = !q ||
+      let list = this.apps.filter(a => {
+        if (this.activeFilter === '') return a.status !== 'descartada';
+        return a.status === this.activeFilter;
+      });
+      const q = this.search.toLowerCase();
+      if (q) {
+        list = list.filter(a =>
           (a.title||'').toLowerCase().includes(q) ||
           (a.company||'').toLowerCase().includes(q) ||
-          (a.portal||'').toLowerCase().includes(q);
-        return matchStatus && matchSearch;
-      });
+          (a.portal||'').toLowerCase().includes(q) ||
+          (a.location||'').toLowerCase().includes(q)
+        );
+      }
+      if (this.sortBy === 'score') {
+        list = [...list].sort((a,b) => (b.relevance_score||0) - (a.relevance_score||0));
+      } else if (this.sortBy === 'date') {
+        list = [...list].sort((a,b) => (b.created_at||'').localeCompare(a.created_at||''));
+      } else if (this.sortBy === 'company') {
+        list = [...list].sort((a,b) => (a.company||'').localeCompare(b.company||''));
+      }
+      return list;
+    },
+
+    countFor(key) {
+      if (key === '') return this.apps.filter(a => a.status !== 'descartada').length;
+      return this.apps.filter(a => a.status === key).length;
+    },
+
+    avgScore() {
+      const scored = this.apps.filter(a => a.relevance_score);
+      if (!scored.length) return '—';
+      const avg = scored.reduce((s,a) => s + a.relevance_score, 0) / scored.length;
+      return Math.round(avg * 100) + '%';
+    },
+
+    parseStrengths(raw) {
+      try { return JSON.parse(raw || '[]'); } catch { return []; }
     },
 
     async updateStatus(appId, status) {
@@ -221,32 +370,48 @@ function appsPage() {
       if (r.ok) {
         const app = this.apps.find(a => a.id === appId);
         if (app) app.status = status;
+        if (this.modal.appId === appId) this.modal.open = false;
       }
     },
 
     async openLetter(app) {
-      this.letterModal = { open: true, loading: true, text: '', job: `${app.title} @ ${app.company}`, url: app.url, copied: false };
+      this.modal = {
+        open: true,
+        loading: !app.cover_letter,
+        text: app.cover_letter || '',
+        subtitle: `${app.title||''} @ ${app.company||''}`,
+        url: app.url || '',
+        appId: app.id,
+        copied: false,
+      };
+      if (app.cover_letter) return;
       try {
         const r = await fetch(`/api/applications/${app.id}/cover_letter`, { method: 'POST' });
         const data = await r.json();
-        this.letterModal.loading = false;
-        this.letterModal.text = data.letter || data.error || 'Error generando la carta.';
+        this.modal.loading = false;
+        const letter = data.letter || data.error || 'No se pudo generar la carta.';
+        this.modal.text = letter;
+        app.cover_letter = letter;
       } catch(e) {
-        this.letterModal.loading = false;
-        this.letterModal.text = 'Error de conexión.';
+        this.modal.loading = false;
+        this.modal.text = 'Error de conexion. Intentalo de nuevo.';
       }
     },
 
     async copyLetter() {
-      if (!this.letterModal.text) return;
-      await navigator.clipboard.writeText(this.letterModal.text);
-      this.letterModal.copied = true;
-      setTimeout(() => this.letterModal.copied = false, 2000);
+      if (!this.modal.text) return;
+      await navigator.clipboard.writeText(this.modal.text);
+      this.modal.copied = true;
+      setTimeout(() => this.modal.copied = false, 2000);
     },
 
-    async markApplied(app) {
+    async apply(app) {
       if (app.url) window.open(app.url, '_blank');
       await this.updateStatus(app.id, 'aplicada');
+    },
+
+    async markApplied(appId) {
+      await this.updateStatus(appId, 'aplicada');
     }
   }
 }
