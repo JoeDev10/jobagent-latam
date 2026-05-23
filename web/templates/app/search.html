@@ -1,5 +1,5 @@
 {% extends "app/layout.html" %}
-{% block title %}Buscar & Aplicar — JobAgent LATAM{% endblock %}
+{% block title %}Descubrir Vacantes — JobAgent LATAM{% endblock %}
 
 {% block content %}
 <div x-data="searchRunner()" class="max-w-3xl mx-auto">
@@ -30,8 +30,8 @@
 
   <!-- Header -->
   <div class="mb-8">
-    <h1 class="text-2xl font-black text-slate-900">Buscar & Aplicar</h1>
-    <p class="text-slate-400 mt-1 text-sm">Configurá la búsqueda y el agente se encarga del resto.</p>
+    <h1 class="text-2xl font-black text-slate-900">Descubrir Vacantes</h1>
+    <p class="text-slate-400 mt-1 text-sm">El agente busca, filtra con IA y te trae las mejores oportunidades. Vos decidís a cuáles aplicar.</p>
   </div>
 
   <!-- Config card -->
@@ -73,24 +73,14 @@
         </div>
       </div>
 
-      <!-- Score y threshold -->
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="label">Score mínimo para evaluar</label>
-          <div class="flex items-center gap-3 mt-1">
-            <input type="range" min="0.3" max="0.9" step="0.05" x-model="config.min_score" class="flex-1 accent-violet-600"/>
-            <span class="text-sm font-bold text-slate-700 w-10 text-right" x-text="Math.round(config.min_score * 100) + '%'"></span>
-          </div>
-          <p class="text-xs text-slate-400 mt-1">Vacantes por debajo de este score se descartan.</p>
+      <!-- Score mínimo -->
+      <div>
+        <label class="label">Match mínimo para mostrar</label>
+        <div class="flex items-center gap-3 mt-1">
+          <input type="range" min="0.3" max="0.9" step="0.05" x-model="config.min_score" class="flex-1 accent-violet-600"/>
+          <span class="text-sm font-bold text-slate-700 w-10 text-right" x-text="Math.round(config.min_score * 100) + '%'"></span>
         </div>
-        <div>
-          <label class="label">Score mínimo para auto-aplicar</label>
-          <div class="flex items-center gap-3 mt-1">
-            <input type="range" min="0.5" max="1.0" step="0.05" x-model="config.auto_threshold" class="flex-1 accent-emerald-600"/>
-            <span class="text-sm font-bold text-slate-700 w-10 text-right" x-text="Math.round(config.auto_threshold * 100) + '%'"></span>
-          </div>
-          <p class="text-xs text-slate-400 mt-1">Solo aplica automáticamente si supera este umbral.</p>
-        </div>
+        <p class="text-xs text-slate-400 mt-1">Vacantes con match menor a este valor se descartan automáticamente.</p>
       </div>
 
       <!-- Max results -->
@@ -115,7 +105,7 @@
     <template x-if="running">
       <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
     </template>
-    <span x-text="running ? 'Agente trabajando...' : '⚡ Buscar y Aplicar ahora'"></span>
+    <span x-text="running ? 'Buscando vacantes...' : '⚡ Descubrir vacantes ahora'"></span>
   </button>
 
   <!-- Live log -->
@@ -162,18 +152,12 @@
 
     <!-- Summary -->
     <div x-show="done" x-cloak class="border-t border-slate-800 px-5 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-4 text-sm">
-        <div class="flex items-center gap-2">
-          <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-          <span class="text-slate-400">Aplicadas: <span class="text-emerald-400 font-bold" x-text="summary.applied || 0"></span></span>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="w-2 h-2 rounded-full bg-amber-500"></div>
-          <span class="text-slate-400">Pendientes: <span class="text-amber-400 font-bold" x-text="summary.pending || 0"></span></span>
-        </div>
+      <div class="flex items-center gap-2 text-sm">
+        <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+        <span class="text-slate-400">Vacantes encontradas: <span class="text-emerald-400 font-bold" x-text="summary.total || 0"></span></span>
       </div>
       <a href="/app/applications" class="text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">
-        Ver aplicaciones →
+        Revisar mis vacantes →
       </a>
     </div>
   </div>
@@ -275,9 +259,9 @@ function searchRunner() {
         es.close();
         this.running = false;
         this.done = true;
-        // count applied/pending from logs
-        const applied = this.logs.filter(l => l.type === 'applied').length;
-        this.summary = { applied, pending: 0 };
+        const successLog = this.logs.find(l => l.type === 'success');
+        const match = successLog && successLog.msg.match(/(\d+) vacantes/);
+        this.summary = { total: match ? parseInt(match[1]) : 0 };
       });
 
       es.onerror = () => {

@@ -337,6 +337,15 @@ class ApplicationTracker:
             notes=row["notes"],
         )
 
+    def save_cover_letter(self, app_id: str, letter: str) -> None:
+        """Guarda la carta de presentación generada en la aplicación."""
+        with _connect() as conn:
+            conn.execute(
+                "UPDATE applications SET cover_letter = ? WHERE id = ?",
+                (letter, app_id),
+            )
+            conn.commit()
+
     def stamp_user_id(self, user_id: int, app_ids: list) -> None:
         """Marca con user_id las aplicaciones recién creadas por el bot."""
         if not app_ids:

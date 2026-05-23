@@ -147,6 +147,43 @@ async def update_app_status(app_id: str, request: Request):
     return JSONResponse({"ok": True})
 
 
+# ─── Cover letter ─────────────────────────────────────────────────────────────
+
+@router.post("/applications/{app_id}/cover_letter")
+async def generate_cover_letter(app_id: str, request: Request):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+
+    user_apps = tracker.get_applications(user_id=user["sub"])
+    if not any(a["id"] == app_id for a in user_apps):
+        return JSONResponse({"error": "No autorizado"}, status_code=403)
+
+    profile_data = db.get_profile(user["sub"])
+    if not profile_data:
+        return JSONResponse({"error": "Completá tu perfil antes de generar una carta."}, status_code=400)
+
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+    from core.models import UserProfile
+    try:
+        profile = UserProfile(**profile_data)
+    except Exception as e:
+        return JSONResponse({"error": f"Error en perfil: {e}"}, status_code=400)
+
+    app_obj = tracker.get_application_full(app_id, profile)
+    if not app_obj:
+        return JSONResponse({"error": "Vacante no encontrada"}, status_code=404)
+
+    from modules.ai.cover_letter import CoverLetterGenerator
+    gen = CoverLetterGenerator()
+    letter = await gen.generate(app_obj.job, profile)
+    tracker.save_cover_letter(app_id, letter)
+    return JSONResponse({"letter": letter})
+
+
 # ─── Run (bot) ────────────────────────────────────────────────────────────────
 
 @router.post("/run")
@@ -262,7 +299,7 @@ async def _run_bot(user_id: int, config: dict, queue: asyncio.Queue):
             modality=JM.ANY,
             max_results_per_portal=max_results,
             min_relevance_score=min_score,
-            auto_apply=True,
+            auto_apply=False,
         )
 
         await _emit(queue, "info", f"Buscando: {', '.join(keywords)} en {', '.join(p.value for p in portals)}")
@@ -279,11 +316,9 @@ async def _run_bot(user_id: int, config: dict, queue: asyncio.Queue):
         agent = JobAgent()
         results = await agent.run(profile, search_config, interactive=False, progress_callback=sync_callback)
 
-        applied_count = sum(1 for a in results if a.status == ApplicationStatus.APPLIED)
-        pending_count = sum(1 for a in results if a.status == ApplicationStatus.PENDING)
-        # Stamp all result applications with this user_id so they appear in their dashboard
+        total = len(results)
         tracker.stamp_user_id(user_id, [a.id for a in results])
-        await _emit(queue, "success", f"¡Listo! {applied_count} aplicaciones enviadas, {pending_count} pendientes de revisión.")
+        await _emit(queue, "success", f"¡Listo! {total} vacantes encontradas y rankeadas. Revisalas en Mis Vacantes.")
 
     except Exception as e:
         await _emit(queue, "error", f"Error inesperado: {str(e)[:300]}")
