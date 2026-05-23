@@ -25,8 +25,10 @@ def _connect() -> sqlite3.Connection:
 
 def _migrate(conn: sqlite3.Connection):
     migrations = [
-        ("users", "runs_used",    "INTEGER DEFAULT 0"),
-        ("users", "upgraded_at",  "TEXT"),
+        ("users",          "runs_used",           "INTEGER DEFAULT 0"),
+        ("users",          "upgraded_at",         "TEXT"),
+        ("user_settings",  "zonajobs_email",      "TEXT DEFAULT ''"),
+        ("user_settings",  "zonajobs_password",   "TEXT DEFAULT ''"),
     ]
     for table, col, defval in migrations:
         try:
@@ -56,6 +58,14 @@ def init_db():
                 profile_json TEXT,
                 updated_at   TEXT,
                 FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                token      TEXT PRIMARY KEY,
+                user_id    INTEGER NOT NULL,
+                expires_at TEXT NOT NULL,
+                used       INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS user_settings (
@@ -185,4 +195,50 @@ def update_settings(user_id: int, **kwargs):
     vals = list(kwargs.values()) + [user_id]
     with _connect() as conn:
         conn.execute(f"UPDATE user_settings SET {cols} WHERE user_id = ?", vals)
+        conn.commit()
+
+
+def get_user_count() -> int:
+    with _connect() as conn:
+        row = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()
+        return row["c"] if row else 0
+
+
+def get_all_users() -> list:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, email, full_name, plan, runs_used, created_at, last_login FROM users ORDER BY id DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def update_password(user_id: int, password_hash: str):
+    with _connect() as conn:
+        conn.execute("UPDATE users SET password = ? WHERE id = ?", (password_hash, user_id))
+        conn.commit()
+
+
+# ─── Password reset tokens ────────────────────────────────────────────────────
+
+def create_reset_token(user_id: int, token: str, expires_at: str):
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO password_reset_tokens (token, user_id, expires_at, created_at) VALUES (?,?,?,?)",
+            (token, user_id, expires_at, datetime.now().isoformat()),
+        )
+        conn.commit()
+
+
+def get_reset_token(token: str) -> Optional[dict]:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0",
+            (token,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def mark_token_used(token: str):
+    with _connect() as conn:
+        conn.execute("UPDATE password_reset_tokens SET used = 1 WHERE token = ?", (token,))
         conn.commit()

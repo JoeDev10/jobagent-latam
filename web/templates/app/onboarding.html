@@ -183,33 +183,58 @@
 
 {% block scripts %}
 <script>
+const _LS_KEY = 'jobagent_onboarding_v1';
+
 function onboarding() {
+  const _saved = (() => { try { return JSON.parse(localStorage.getItem(_LS_KEY) || 'null'); } catch { return null; } })();
+
   return {
-    currentStep: 0,
+    currentStep: _saved?.currentStep ?? 0,
     steps: ['Personal', 'Skills', 'Preferencias'],
     saving: false,
     saved: false,
-    hardSkillsRaw: '',
-    softSkillsRaw: '',
-    languagesRaw: 'Español:Nativo',
-    experienceRaw: '',
-    educationRaw: '',
-    targetRolesRaw: '',
-    excludeCompaniesRaw: '',
+    hardSkillsRaw: _saved?.hardSkillsRaw ?? '',
+    softSkillsRaw: _saved?.softSkillsRaw ?? '',
+    languagesRaw: _saved?.languagesRaw ?? 'Español:Nativo',
+    experienceRaw: _saved?.experienceRaw ?? '',
+    educationRaw: _saved?.educationRaw ?? '',
+    targetRolesRaw: _saved?.targetRolesRaw ?? '',
+    excludeCompaniesRaw: _saved?.excludeCompaniesRaw ?? '',
     form: {
-      full_name: '{{ user.full_name }}',
-      email: '{{ user.email }}',
-      phone: '',
-      location: 'Argentina',
-      linkedin_url: '',
-      headline: '',
-      summary: '',
-      experience_level: 'junior',
-      preferred_modality: 'cualquiera',
-      preferred_countries: ['Argentina'],
+      full_name: _saved?.form?.full_name ?? '{{ user.full_name }}',
+      email: _saved?.form?.email ?? '{{ user.email }}',
+      phone: _saved?.form?.phone ?? '',
+      location: _saved?.form?.location ?? 'Argentina',
+      linkedin_url: _saved?.form?.linkedin_url ?? '',
+      headline: _saved?.form?.headline ?? '',
+      summary: _saved?.form?.summary ?? '',
+      experience_level: _saved?.form?.experience_level ?? 'junior',
+      preferred_modality: _saved?.form?.preferred_modality ?? 'cualquiera',
+      preferred_countries: _saved?.form?.preferred_countries ?? ['Argentina'],
     },
 
-    nextStep() { if (this.currentStep < this.steps.length - 1) this.currentStep++; },
+    _persist() {
+      try {
+        localStorage.setItem(_LS_KEY, JSON.stringify({
+          currentStep: this.currentStep,
+          hardSkillsRaw: this.hardSkillsRaw,
+          softSkillsRaw: this.softSkillsRaw,
+          languagesRaw: this.languagesRaw,
+          experienceRaw: this.experienceRaw,
+          educationRaw: this.educationRaw,
+          targetRolesRaw: this.targetRolesRaw,
+          excludeCompaniesRaw: this.excludeCompaniesRaw,
+          form: this.form,
+        }));
+      } catch {}
+    },
+
+    nextStep() {
+      if (this.currentStep < this.steps.length - 1) {
+        this.currentStep++;
+        this._persist();
+      }
+    },
 
     buildProfile() {
       const splitCsv = s => s.split(',').map(x => x.trim()).filter(Boolean);
@@ -256,12 +281,19 @@ function onboarding() {
           body: JSON.stringify(profile),
         });
         if (r.ok) {
+          try { localStorage.removeItem(_LS_KEY); } catch {}
           this.saved = true;
           setTimeout(() => { window.location.href = '/app/dashboard'; }, 1500);
         }
       } finally {
         this.saving = false;
       }
+    },
+
+    init() {
+      const fields = ['hardSkillsRaw','softSkillsRaw','languagesRaw','experienceRaw','educationRaw','targetRolesRaw','excludeCompaniesRaw'];
+      fields.forEach(f => this.$watch(f, () => this._persist()));
+      this.$watch('form', () => this._persist(), { deep: true });
     }
   }
 }

@@ -201,7 +201,7 @@ function searchRunner() {
     limitReached: false,
     limitMsg: '',
     config: {
-      keywordsRaw: '{{ settings.get("preferred_portals", "") }}' || 'QA Analyst, QA Tester, Tester',
+      keywordsRaw: '{{ default_keywords }}',
       portals: {{ (settings.preferred_portals or ['computrabajo']) | tojson }},
       min_score: {{ settings.get('min_score', 0.60) }},
       auto_threshold: {{ settings.get('auto_apply_threshold', 0.80) }},
@@ -250,6 +250,11 @@ function searchRunner() {
         if (r.status === 402) {
           this.limitReached = true;
           this.limitMsg = data.msg || 'Alcanzaste el límite de búsquedas gratuitas.';
+          this.running = false;
+          return;
+        }
+        if (r.status === 429) {
+          this.addLog('warning', data.msg || 'Esperá unos segundos antes de iniciar otra búsqueda.');
           this.running = false;
           return;
         }

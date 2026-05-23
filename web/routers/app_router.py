@@ -29,9 +29,10 @@ async def dashboard(request: Request):
         return RedirectResponse("/login", status_code=302)
 
     user = db.get_user_by_id(user_token["sub"])
-    stats = tracker.get_stats()
-    recent = tracker.get_applications()[:10]
-    profile = db.get_profile(user_token["sub"])
+    uid = user_token["sub"]
+    stats = tracker.get_stats(user_id=uid)
+    recent = tracker.get_applications(user_id=uid)[:10]
+    profile = db.get_profile(uid)
 
     runs_used = user.get("runs_used") or 0 if user else 0
 
@@ -84,9 +85,12 @@ async def search_page(request: Request):
 
     user = db.get_user_by_id(user_token["sub"])
     settings = db.get_settings(user_token["sub"])
+    profile = db.get_profile(user_token["sub"]) or {}
+    default_keywords = ", ".join(profile.get("target_roles", [])) or "QA Analyst, QA Tester, Tester de Software"
     return templates.TemplateResponse(request, "app/search.html", {
         "user": user,
         "settings": settings,
+        "default_keywords": default_keywords,
         "active": "search",
     })
 
@@ -99,8 +103,9 @@ async def applications_page(request: Request):
         return RedirectResponse("/login", status_code=302)
 
     user = db.get_user_by_id(user_token["sub"])
-    apps = tracker.get_applications()
-    stats = tracker.get_stats()
+    uid = user_token["sub"]
+    apps = tracker.get_applications(user_id=uid)
+    stats = tracker.get_stats(user_id=uid)
     return templates.TemplateResponse(request, "app/applications.html", {
         "user": user,
         "applications": apps,

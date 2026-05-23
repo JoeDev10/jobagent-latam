@@ -14,6 +14,7 @@ import hmac
 import json
 import os
 import sys
+import time
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -30,9 +31,12 @@ router = APIRouter(prefix="/api")
 tracker = ApplicationTracker()
 
 FREE_RUNS_LIMIT = int(os.environ.get("FREE_RUNS_LIMIT", "3"))
+RUN_COOLDOWN = 30  # segundos mínimos entre búsquedas
 
 # Cola de eventos por run_id → asyncio.Queue
 _queues: dict[str, asyncio.Queue] = {}
+# Rate limiting: user_id → timestamp del último run
+_run_timestamps: dict[int, float] = {}
 
 
 # ─── Perfil ───────────────────────────────────────────────────────────────────
@@ -59,6 +63,7 @@ async def save_settings(request: Request):
     allowed = {
         "computrabajo_email", "computrabajo_password",
         "bumeran_email", "bumeran_password",
+        "zonajobs_email", "zonajobs_password",
         "groq_api_key", "telegram_bot_token", "telegram_chat_id",
         "max_apps_per_day", "auto_apply_threshold", "min_score",
         "headless", "preferred_portals",
@@ -75,7 +80,7 @@ async def get_stats(request: Request):
     user = get_current_user(request)
     if not user:
         return JSONResponse({"error": "No autorizado"}, status_code=401)
-    return JSONResponse(tracker.get_stats())
+    return JSONResponse(tracker.get_stats(user_id=user["sub"]))
 
 
 # ─── Applications ─────────────────────────────────────────────────────────────
@@ -85,13 +90,43 @@ async def get_applications(request: Request):
     user = get_current_user(request)
     if not user:
         return JSONResponse({"error": "No autorizado"}, status_code=401)
-    apps = tracker.get_applications()
-    # serializar datetimes
+    apps = tracker.get_applications(user_id=user["sub"])
     for a in apps:
         for k, v in a.items():
             if isinstance(v, datetime):
                 a[k] = v.isoformat()
     return JSONResponse(apps)
+
+
+@router.get("/applications/export")
+async def export_applications_csv(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+    import csv
+    import io
+    apps = tracker.get_applications(user_id=user["sub"])
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Empresa", "Puesto", "Portal", "Estado", "Score", "URL", "Fecha"])
+    for a in apps:
+        writer.writerow([
+            a.get("id", ""),
+            a.get("company", ""),
+            a.get("title", ""),
+            a.get("portal", ""),
+            a.get("status", ""),
+            a.get("relevance_score", ""),
+            a.get("url", ""),
+            a.get("applied_at") or a.get("created_at", ""),
+        ])
+    csv_bytes = output.getvalue().encode("utf-8-sig")  # BOM for Excel
+    from fastapi.responses import Response
+    return Response(
+        content=csv_bytes,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=aplicaciones.csv"},
+    )
 
 
 @router.put("/applications/{app_id}/status")
@@ -120,7 +155,19 @@ async def start_run(request: Request):
     if not user:
         return JSONResponse({"error": "No autorizado"}, status_code=401)
 
-    user_data = db.get_user_by_id(user["sub"])
+    user_id: int = user["sub"]
+
+    # Rate limiting
+    now = time.time()
+    last = _run_timestamps.get(user_id, 0)
+    if now - last < RUN_COOLDOWN:
+        remaining = int(RUN_COOLDOWN - (now - last))
+        return JSONResponse({
+            "error": "cooldown",
+            "msg": f"Esperá {remaining} segundos antes de iniciar otra búsqueda.",
+        }, status_code=429)
+
+    user_data = db.get_user_by_id(user_id)
     if user_data and user_data.get("plan", "free") == "free":
         runs_used = user_data.get("runs_used") or 0
         if runs_used >= FREE_RUNS_LIMIT:
@@ -134,8 +181,9 @@ async def start_run(request: Request):
     run_id = str(uuid.uuid4())
     queue: asyncio.Queue = asyncio.Queue()
     _queues[run_id] = queue
+    _run_timestamps[user_id] = now
 
-    asyncio.create_task(_run_bot(user["sub"], data, queue))
+    asyncio.create_task(_run_bot(user_id, data, queue))
     return JSONResponse({"run_id": run_id})
 
 
@@ -233,6 +281,8 @@ async def _run_bot(user_id: int, config: dict, queue: asyncio.Queue):
 
         applied_count = sum(1 for a in results if a.status == ApplicationStatus.APPLIED)
         pending_count = sum(1 for a in results if a.status == ApplicationStatus.PENDING)
+        # Stamp all result applications with this user_id so they appear in their dashboard
+        tracker.stamp_user_id(user_id, [a.id for a in results])
         await _emit(queue, "success", f"¡Listo! {applied_count} aplicaciones enviadas, {pending_count} pendientes de revisión.")
 
     except Exception as e:
@@ -250,6 +300,8 @@ def _patch_env(settings_row: dict):
         "computrabajo_password": "COMPUTRABAJO_PASSWORD",
         "bumeran_email":         "BUMERAN_EMAIL",
         "bumeran_password":      "BUMERAN_PASSWORD",
+        "zonajobs_email":        "ZONAJOBS_EMAIL",
+        "zonajobs_password":     "ZONAJOBS_PASSWORD",
         "groq_api_key":          "GROQ_API_KEY",
         "telegram_bot_token":    "TELEGRAM_BOT_TOKEN",
         "telegram_chat_id":      "TELEGRAM_CHAT_ID",
