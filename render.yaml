@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: jobagent-latam
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATA_DIR
+        value: /app/data
+      - key: PORT
+        value: 10000
+      - key: GROQ_API_KEY
+        sync: false

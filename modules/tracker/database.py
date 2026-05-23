@@ -6,6 +6,7 @@ Tablas:
   - applications: Aplicaciones enviadas o pendientes
 """
 import json
+import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -15,7 +16,8 @@ from core import Application, ApplicationStatus, JobListing, Portal, get_logger
 
 logger = get_logger(__name__)
 
-DB_PATH = Path("data/jobagent.db")
+_data_dir = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent.parent / "data"))
+DB_PATH = _data_dir / "jobagent.db"
 
 
 def _connect() -> sqlite3.Connection:

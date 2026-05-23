@@ -1,0 +1,165 @@
+{% extends "app/layout.html" %}
+{% block title %}Mi perfil — JobAgent LATAM{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto" x-data="profilePage()">
+
+  <div class="mb-8 flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-black text-slate-900">Mi perfil</h1>
+      <p class="text-slate-400 mt-1 text-sm">El agente usa esta información para evaluar y aplicar a vacantes.</p>
+    </div>
+    <button @click="save()" :disabled="saving"
+      class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-violet-200 disabled:opacity-60">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+      <span x-text="saving ? 'Guardando...' : 'Guardar'"></span>
+    </button>
+  </div>
+
+  <!-- Personal -->
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-4">
+    <h2 class="font-bold text-slate-900 mb-4">Información personal</h2>
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="label">Nombre completo</label><input type="text" x-model="form.full_name" class="input"/></div>
+        <div><label class="label">Email</label><input type="email" x-model="form.email" class="input"/></div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="label">Teléfono</label><input type="text" x-model="form.phone" class="input"/></div>
+        <div><label class="label">Ubicación</label><input type="text" x-model="form.location" class="input"/></div>
+      </div>
+      <div><label class="label">LinkedIn</label><input type="url" x-model="form.linkedin_url" class="input" placeholder="https://linkedin.com/in/..."/></div>
+      <div><label class="label">Título profesional</label><input type="text" x-model="form.headline" class="input" placeholder="Ej: QA Analyst Junior"/></div>
+      <div><label class="label">Resumen profesional</label><textarea x-model="form.summary" class="input h-28 resize-none"></textarea></div>
+      <div>
+        <label class="label">Nivel de experiencia</label>
+        <select x-model="form.experience_level" class="input">
+          <option value="junior">Junior (0–2 años)</option>
+          <option value="semi_senior">Semi Senior (2–5 años)</option>
+          <option value="senior">Senior (5+ años)</option>
+          <option value="lead">Lead / Manager</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Skills -->
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-4">
+    <h2 class="font-bold text-slate-900 mb-4">Skills</h2>
+    <div class="space-y-4">
+      <div>
+        <label class="label">Hard skills <span class="text-slate-400 font-normal">(separadas por coma)</span></label>
+        <input type="text" x-model="hardSkillsRaw" class="input"/>
+      </div>
+      <div>
+        <label class="label">Soft skills</label>
+        <input type="text" x-model="softSkillsRaw" class="input"/>
+      </div>
+      <div>
+        <label class="label">Idiomas <span class="text-slate-400 font-normal">(Idioma:Nivel)</span></label>
+        <input type="text" x-model="languagesRaw" class="input" placeholder="Español:Nativo, Inglés:B2"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Búsqueda -->
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+    <h2 class="font-bold text-slate-900 mb-4">Preferencias de búsqueda</h2>
+    <div class="space-y-4">
+      <div>
+        <label class="label">Roles objetivo <span class="text-slate-400 font-normal">(separados por coma)</span></label>
+        <input type="text" x-model="targetRolesRaw" class="input" placeholder="QA Analyst, QA Tester, Tester Manual"/>
+      </div>
+      <div>
+        <label class="label">Modalidad preferida</label>
+        <div class="grid grid-cols-4 gap-2">
+          <template x-for="m in [{v:'cualquiera',l:'Cualquiera'},{v:'remoto',l:'Remoto'},{v:'hibrido',l:'Híbrido'},{v:'presencial',l:'Presencial'}]">
+            <label class="flex items-center justify-center px-3 py-2.5 rounded-xl border text-sm font-medium cursor-pointer transition-all"
+              :class="form.preferred_modality === m.v ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
+              <input type="radio" x-model="form.preferred_modality" :value="m.v" class="sr-only"/>
+              <span x-text="m.l"></span>
+            </label>
+          </template>
+        </div>
+      </div>
+      <div>
+        <label class="label">Empresas a excluir <span class="text-slate-400 font-normal">(separadas por coma)</span></label>
+        <input type="text" x-model="excludeCompaniesRaw" class="input" placeholder="Empresa A, Empresa B..."/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div x-show="saved" x-cloak x-transition
+    class="fixed bottom-6 right-6 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-xl font-semibold text-sm flex items-center gap-2 z-50">
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    Perfil guardado
+  </div>
+</div>
+
+<style>
+  .label { display:block; font-size:.8125rem; font-weight:600; color:#475569; margin-bottom:.375rem; }
+  .input { display:block; width:100%; padding:.625rem 1rem; border-radius:.75rem; border:1px solid #e2e8f0; font-size:.875rem; color:#0f172a; outline:none; transition:border-color .15s,box-shadow .15s; background:#fff; }
+  .input:focus { border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.1); }
+  select.input { appearance:none; background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-repeat:no-repeat; background-position:right .75rem center; background-size:1.25rem; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function profilePage() {
+  const raw = {{ profile | tojson }};
+  const splitCsv = arr => Array.isArray(arr) ? arr.join(', ') : (arr || '');
+  const langStr = obj => obj ? Object.entries(obj).map(([k,v]) => `${k}:${v}`).join(', ') : '';
+  const rolesStr = arr => Array.isArray(arr) ? arr.join(', ') : (arr || '');
+
+  return {
+    saving: false,
+    saved: false,
+    hardSkillsRaw: splitCsv(raw.hard_skills),
+    softSkillsRaw: splitCsv(raw.soft_skills),
+    languagesRaw: langStr(raw.languages),
+    targetRolesRaw: rolesStr(raw.target_roles),
+    excludeCompaniesRaw: splitCsv(raw.exclude_companies),
+    form: {
+      full_name: raw.full_name || '',
+      email: raw.email || '',
+      phone: raw.phone || '',
+      location: raw.location || '',
+      linkedin_url: raw.linkedin_url || '',
+      headline: raw.headline || '',
+      summary: raw.summary || '',
+      experience_level: raw.experience_level || 'junior',
+      preferred_modality: raw.preferred_modality || 'cualquiera',
+      preferred_countries: raw.preferred_countries || ['Argentina'],
+      work_experience: raw.work_experience || [],
+      education: raw.education || [],
+      preferred_portals: raw.preferred_portals || ['computrabajo'],
+      target_industries: raw.target_industries || [],
+    },
+
+    async save() {
+      this.saving = true;
+      const profile = {
+        ...this.form,
+        hard_skills: this.hardSkillsRaw.split(',').map(s=>s.trim()).filter(Boolean),
+        soft_skills: this.softSkillsRaw.split(',').map(s=>s.trim()).filter(Boolean),
+        target_roles: this.targetRolesRaw.split(',').map(s=>s.trim()).filter(Boolean),
+        exclude_companies: this.excludeCompaniesRaw.split(',').map(s=>s.trim()).filter(Boolean),
+        languages: Object.fromEntries(
+          this.languagesRaw.split(',').map(p => p.split(':').map(s=>s.trim())).filter(p=>p.length===2)
+        ),
+      };
+      try {
+        const r = await fetch('/api/profile', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(profile),
+        });
+        if (r.ok) { this.saved = true; setTimeout(() => this.saved = false, 3000); }
+      } finally { this.saving = false; }
+    }
+  }
+}
+</script>
+{% endblock %}

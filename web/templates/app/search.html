@@ -1,0 +1,253 @@
+{% extends "app/layout.html" %}
+{% block title %}Buscar & Aplicar — JobAgent LATAM{% endblock %}
+
+{% block content %}
+<div x-data="searchRunner()" class="max-w-3xl mx-auto">
+
+  <!-- Header -->
+  <div class="mb-8">
+    <h1 class="text-2xl font-black text-slate-900">Buscar & Aplicar</h1>
+    <p class="text-slate-400 mt-1 text-sm">Configurá la búsqueda y el agente se encarga del resto.</p>
+  </div>
+
+  <!-- Config card -->
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6" :class="running ? 'opacity-60 pointer-events-none' : ''">
+    <h2 class="font-bold text-slate-900 mb-5">Configuración de búsqueda</h2>
+    <div class="space-y-5">
+
+      <!-- Keywords -->
+      <div>
+        <label class="label">Roles / Keywords a buscar</label>
+        <p class="text-xs text-slate-400 mb-2">Separados por coma. El agente buscará cada uno en los portales elegidos.</p>
+        <input type="text" x-model="config.keywordsRaw" class="input"
+          placeholder="QA Analyst, QA Tester, QA Manual, Tester de Software"/>
+      </div>
+
+      <!-- Portales -->
+      <div>
+        <label class="label">Portales</label>
+        <div class="grid grid-cols-3 gap-3 mt-1">
+          {% for pid, pname, color in [
+            ('computrabajo','Computrabajo','orange'),
+            ('bumeran','Bumeran','blue'),
+            ('zonajobs','ZonaJobs','green'),
+          ] %}
+          <label class="relative flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all"
+            :class="config.portals.includes('{{ pid }}') ? 'border-violet-500 bg-violet-50' : 'border-slate-200 hover:border-slate-300'">
+            <input type="checkbox" value="{{ pid }}" class="sr-only"
+              @change="togglePortal('{{ pid }}')" :checked="config.portals.includes('{{ pid }}')"/>
+            <div class="w-6 h-6 rounded-lg bg-{{ color }}-100 flex items-center justify-center flex-shrink-0">
+              <span class="text-{{ color }}-600 text-xs font-black">{{ pid[:2]|upper }}</span>
+            </div>
+            <span class="text-sm font-semibold" :class="config.portals.includes('{{ pid }}') ? 'text-violet-700' : 'text-slate-600'">{{ pname }}</span>
+            <div class="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center transition-all"
+              :class="config.portals.includes('{{ pid }}') ? 'bg-violet-500' : 'bg-slate-200'">
+              <svg class="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Score y threshold -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="label">Score mínimo para evaluar</label>
+          <div class="flex items-center gap-3 mt-1">
+            <input type="range" min="0.3" max="0.9" step="0.05" x-model="config.min_score" class="flex-1 accent-violet-600"/>
+            <span class="text-sm font-bold text-slate-700 w-10 text-right" x-text="Math.round(config.min_score * 100) + '%'"></span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Vacantes por debajo de este score se descartan.</p>
+        </div>
+        <div>
+          <label class="label">Score mínimo para auto-aplicar</label>
+          <div class="flex items-center gap-3 mt-1">
+            <input type="range" min="0.5" max="1.0" step="0.05" x-model="config.auto_threshold" class="flex-1 accent-emerald-600"/>
+            <span class="text-sm font-bold text-slate-700 w-10 text-right" x-text="Math.round(config.auto_threshold * 100) + '%'"></span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Solo aplica automáticamente si supera este umbral.</p>
+        </div>
+      </div>
+
+      <!-- Max results -->
+      <div>
+        <label class="label">Vacantes máximas por portal</label>
+        <div class="flex items-center gap-3 mt-1">
+          <input type="range" min="5" max="50" step="5" x-model="config.max_results" class="flex-1 accent-violet-600"/>
+          <span class="text-sm font-bold text-slate-700 w-16 text-right" x-text="config.max_results + ' vacan.'"></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Run button -->
+  <button @click="startRun()" :disabled="running || config.portals.length === 0"
+    class="w-full py-4 rounded-2xl font-black text-lg transition-all shadow-xl mb-6 flex items-center justify-center gap-3"
+    :class="running ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-violet-600 hover:bg-violet-700 text-white shadow-violet-200 hover:scale-[1.01]'">
+    <template x-if="!running">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+    </template>
+    <template x-if="running">
+      <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+    </template>
+    <span x-text="running ? 'Agente trabajando...' : '⚡ Buscar y Aplicar ahora'"></span>
+  </button>
+
+  <!-- Live log -->
+  <div x-show="logs.length > 0 || running" x-cloak
+    class="bg-slate-900 rounded-2xl overflow-hidden shadow-xl">
+    <!-- Log header -->
+    <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-3">
+      <div class="flex gap-1.5">
+        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+      </div>
+      <span class="text-slate-400 text-xs font-mono">jobagent — live log</span>
+      <div x-show="running" class="ml-auto flex items-center gap-2">
+        <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+        <span class="text-emerald-400 text-xs font-semibold">EN VIVO</span>
+      </div>
+      <div x-show="done && !running" class="ml-auto flex items-center gap-2">
+        <div class="w-2 h-2 rounded-full bg-slate-500"></div>
+        <span class="text-slate-500 text-xs font-semibold">FINALIZADO</span>
+      </div>
+    </div>
+
+    <!-- Log output -->
+    <div id="log-container" class="p-5 font-mono text-sm space-y-1.5 max-h-96 overflow-y-auto scrollbar-thin">
+      <template x-for="(log, i) in logs" :key="i">
+        <div class="flex items-start gap-3">
+          <span class="text-slate-600 text-xs flex-shrink-0 mt-0.5" x-text="log.ts"></span>
+          <span :class="{
+            'text-slate-300': log.type === 'info',
+            'text-emerald-400': log.type === 'success',
+            'text-red-400': log.type === 'error',
+            'text-amber-400': log.type === 'warning',
+            'text-blue-400': log.type === 'applied',
+          }" x-text="log.msg"></span>
+        </div>
+      </template>
+      <template x-if="running">
+        <div class="flex items-center gap-2 text-slate-500 text-xs mt-2">
+          <span class="animate-pulse">▋</span>
+        </div>
+      </template>
+    </div>
+
+    <!-- Summary -->
+    <div x-show="done" x-cloak class="border-t border-slate-800 px-5 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4 text-sm">
+        <div class="flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+          <span class="text-slate-400">Aplicadas: <span class="text-emerald-400 font-bold" x-text="summary.applied || 0"></span></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full bg-amber-500"></div>
+          <span class="text-slate-400">Pendientes: <span class="text-amber-400 font-bold" x-text="summary.pending || 0"></span></span>
+        </div>
+      </div>
+      <a href="/app/applications" class="text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors">
+        Ver aplicaciones →
+      </a>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  .label { display: block; font-size: .8125rem; font-weight: 600; color: #475569; margin-bottom: .375rem; }
+  .input { display: block; width: 100%; padding: .625rem 1rem; border-radius: .75rem; border: 1px solid #e2e8f0; font-size: .875rem; color: #0f172a; outline: none; transition: border-color .15s, box-shadow .15s; background: #fff; }
+  .input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,.1); }
+  .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 99px; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function searchRunner() {
+  return {
+    running: false,
+    done: false,
+    logs: [],
+    summary: {},
+    config: {
+      keywordsRaw: '{{ settings.get("preferred_portals", "") }}' || 'QA Analyst, QA Tester, Tester',
+      portals: {{ (settings.preferred_portals or ['computrabajo']) | tojson }},
+      min_score: {{ settings.get('min_score', 0.60) }},
+      auto_threshold: {{ settings.get('auto_apply_threshold', 0.80) }},
+      max_results: 15,
+    },
+
+    togglePortal(pid) {
+      const idx = this.config.portals.indexOf(pid);
+      if (idx === -1) this.config.portals.push(pid);
+      else this.config.portals.splice(idx, 1);
+    },
+
+    addLog(type, msg, ts) {
+      this.logs.push({ type, msg, ts: ts || new Date().toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit',second:'2-digit'}) });
+      this.$nextTick(() => {
+        const c = document.getElementById('log-container');
+        if (c) c.scrollTop = c.scrollHeight;
+      });
+    },
+
+    async startRun() {
+      this.running = true;
+      this.done = false;
+      this.logs = [];
+      this.summary = {};
+
+      const keywords = this.config.keywordsRaw.split(',').map(s => s.trim()).filter(Boolean);
+      if (!keywords.length) { this.addLog('error', 'Ingresá al menos un rol/keyword.'); this.running = false; return; }
+
+      const body = {
+        keywords,
+        portals: this.config.portals,
+        min_score: parseFloat(this.config.min_score),
+        auto_threshold: parseFloat(this.config.auto_threshold),
+        max_results: parseInt(this.config.max_results),
+      };
+
+      let runId;
+      try {
+        const r = await fetch('/api/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await r.json();
+        if (!r.ok || !data.run_id) { this.addLog('error', data.error || 'No se pudo iniciar el agente.'); this.running = false; return; }
+        runId = data.run_id;
+      } catch(e) { this.addLog('error', 'Error de conexión.'); this.running = false; return; }
+
+      const es = new EventSource(`/api/progress/${runId}`);
+
+      es.addEventListener('info',    e => { const d = JSON.parse(e.data); this.addLog('info', d.msg, d.ts); });
+      es.addEventListener('success', e => { const d = JSON.parse(e.data); this.addLog('success', '✓ ' + d.msg, d.ts); });
+      es.addEventListener('error',   e => { const d = JSON.parse(e.data); this.addLog('error', '✗ ' + d.msg, d.ts); });
+      es.addEventListener('warning', e => { const d = JSON.parse(e.data); this.addLog('warning', '⚠ ' + d.msg, d.ts); });
+      es.addEventListener('applied', e => { const d = JSON.parse(e.data); this.addLog('applied', '🎯 ' + d.msg, d.ts); });
+      es.addEventListener('ping',    () => {});
+
+      es.addEventListener('done', e => {
+        es.close();
+        this.running = false;
+        this.done = true;
+        // count applied/pending from logs
+        const applied = this.logs.filter(l => l.type === 'applied').length;
+        this.summary = { applied, pending: 0 };
+      });
+
+      es.onerror = () => {
+        if (!this.done) { this.addLog('error', 'Se perdió la conexión con el agente.'); this.running = false; es.close(); }
+      };
+    }
+  }
+}
+</script>
+{% endblock %}

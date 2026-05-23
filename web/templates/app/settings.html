@@ -1,0 +1,204 @@
+{% extends "app/layout.html" %}
+{% block title %}Configuración — JobAgent LATAM{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto" x-data="settingsPage()">
+
+  <div class="mb-8">
+    <h1 class="text-2xl font-black text-slate-900">Configuración</h1>
+    <p class="text-slate-400 mt-1 text-sm">Credenciales de portales, API keys y preferencias del agente.</p>
+  </div>
+
+  <!-- Computrabajo -->
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-4">
+    <div class="flex items-center gap-3 mb-5">
+      <div class="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center">
+        <span class="text-orange-600 text-xs font-black">CT</span>
+      </div>
+      <div>
+        <h2 class="font-bold text-slate-900">Computrabajo</h2>
+        <p class="text-xs text-slate-400">ar.computrabajo.com</p>
+      </div>
+      <div class="ml-auto">
+        <span x-show="form.computrabajo_email" class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">✓ Configurado</span>
+        <span x-show="!form.computrabajo_email" class="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-1 rounded-full">Sin configurar</span>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="label">Email</label>
+        <input type="email" x-model="form.computrabajo_email" class="input" placeholder="tu@email.com"/>
+      </div>
+      <div>
+        <label class="label">Contraseña</label>
+        <input type="password" x-model="form.computrabajo_password" class="input" placeholder="••••••••"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bumeran -->
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-4">
+    <div class="flex items-center gap-3 mb-5">
+      <div class="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
+        <span class="text-blue-600 text-xs font-black">BU</span>
+      </div>
+      <div>
+        <h2 class="font-bold text-slate-900">Bumeran</h2>
+        <p class="text-xs text-slate-400">bumeran.com.ar</p>
+      </div>
+      <div class="ml-auto">
+        <span x-show="form.bumeran_email" class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">✓ Configurado</span>
+        <span x-show="!form.bumeran_email" class="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-1 rounded-full">Sin configurar</span>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="label">Email</label>
+        <input type="email" x-model="form.bumeran_email" class="input" placeholder="tu@email.com"/>
+      </div>
+      <div>
+        <label class="label">Contraseña</label>
+        <input type="password" x-model="form.bumeran_password" class="input" placeholder="••••••••"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Groq API Key -->
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-4">
+    <div class="flex items-center gap-3 mb-5">
+      <div class="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center">
+        <svg class="w-5 h-5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+      </div>
+      <div>
+        <h2 class="font-bold text-slate-900">Groq API Key</h2>
+        <p class="text-xs text-slate-400">Para scoring IA y cartas de presentación</p>
+      </div>
+      <div class="ml-auto">
+        <span x-show="form.groq_api_key" class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">✓ Configurado</span>
+        <span x-show="!form.groq_api_key" class="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-full">⚠ Requerido</span>
+      </div>
+    </div>
+    <div>
+      <label class="label">API Key</label>
+      <input type="password" x-model="form.groq_api_key" class="input" placeholder="gsk_..."/>
+      <p class="text-xs text-slate-400 mt-1.5">Conseguila gratis en <a href="https://console.groq.com" target="_blank" class="text-violet-600 hover:underline">console.groq.com</a> → API Keys</p>
+    </div>
+  </div>
+
+  <!-- Telegram -->
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-4">
+    <div class="flex items-center gap-3 mb-5">
+      <div class="w-9 h-9 rounded-xl bg-sky-100 flex items-center justify-center">
+        <svg class="w-5 h-5 text-sky-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.04 9.613c-.15.674-.543.838-1.097.52l-3-2.21-1.447 1.393c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.332-.373-.12L7.08 14.316l-2.95-.924c-.64-.203-.654-.64.136-.948l11.517-4.44c.533-.194 1.002.13.78.244z"/></svg>
+      </div>
+      <div>
+        <h2 class="font-bold text-slate-900">Telegram</h2>
+        <p class="text-xs text-slate-400">Notificaciones por cada aplicación</p>
+      </div>
+      <div class="ml-auto">
+        <span x-show="form.telegram_bot_token" class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">✓ Configurado</span>
+        <span x-show="!form.telegram_bot_token" class="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-1 rounded-full">Opcional</span>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="label">Token del bot</label>
+        <input type="password" x-model="form.telegram_bot_token" class="input" placeholder="1234567890:AAF..."/>
+      </div>
+      <div>
+        <label class="label">Chat ID</label>
+        <input type="text" x-model="form.telegram_chat_id" class="input" placeholder="123456789"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agente -->
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+    <h2 class="font-bold text-slate-900 mb-5">Comportamiento del agente</h2>
+    <div class="space-y-4">
+      <div class="flex items-center justify-between py-2">
+        <div>
+          <div class="text-sm font-semibold text-slate-800">Máx. aplicaciones por día</div>
+          <div class="text-xs text-slate-400">El agente se detiene al alcanzar este límite.</div>
+        </div>
+        <div class="flex items-center gap-3">
+          <input type="range" min="5" max="100" step="5" x-model="form.max_apps_per_day" class="w-24 accent-violet-600"/>
+          <span class="text-sm font-bold text-slate-700 w-8 text-right" x-text="form.max_apps_per_day"></span>
+        </div>
+      </div>
+      <div class="border-t border-slate-100"></div>
+      <div class="flex items-center justify-between py-2">
+        <div>
+          <div class="text-sm font-semibold text-slate-800">Modo headless</div>
+          <div class="text-xs text-slate-400">El navegador corre en segundo plano (recomendado).</div>
+        </div>
+        <button @click="form.headless = form.headless ? 0 : 1"
+          class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+          :class="form.headless ? 'bg-violet-600' : 'bg-slate-200'">
+          <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"
+            :class="form.headless ? 'translate-x-6' : 'translate-x-1'"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save -->
+  <button @click="save()" :disabled="saving"
+    class="w-full py-3.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold transition-colors shadow-lg shadow-violet-200 disabled:opacity-60">
+    <span x-text="saving ? 'Guardando...' : 'Guardar configuración'"></span>
+  </button>
+
+  <!-- Toast -->
+  <div x-show="saved" x-cloak x-transition
+    class="fixed bottom-6 right-6 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-xl font-semibold text-sm flex items-center gap-2 z-50">
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    Configuración guardada
+  </div>
+
+</div>
+
+<style>
+  .label { display:block; font-size:.8125rem; font-weight:600; color:#475569; margin-bottom:.375rem; }
+  .input { display:block; width:100%; padding:.625rem 1rem; border-radius:.75rem; border:1px solid #e2e8f0; font-size:.875rem; color:#0f172a; outline:none; transition:border-color .15s,box-shadow .15s; background:#fff; }
+  .input:focus { border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.1); }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function settingsPage() {
+  return {
+    saving: false,
+    saved: false,
+    form: {
+      computrabajo_email:    '{{ settings.get("computrabajo_email","") }}',
+      computrabajo_password: '{{ settings.get("computrabajo_password","") }}',
+      bumeran_email:         '{{ settings.get("bumeran_email","") }}',
+      bumeran_password:      '{{ settings.get("bumeran_password","") }}',
+      groq_api_key:          '{{ settings.get("groq_api_key","") }}',
+      telegram_bot_token:    '{{ settings.get("telegram_bot_token","") }}',
+      telegram_chat_id:      '{{ settings.get("telegram_chat_id","") }}',
+      max_apps_per_day:      {{ settings.get("max_apps_per_day", 30) }},
+      headless:              {{ settings.get("headless", 1) }},
+    },
+
+    async save() {
+      this.saving = true;
+      try {
+        const r = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.form),
+        });
+        if (r.ok) {
+          this.saved = true;
+          setTimeout(() => this.saved = false, 3000);
+        }
+      } finally {
+        this.saving = false;
+      }
+    }
+  }
+}
+</script>
+{% endblock %}

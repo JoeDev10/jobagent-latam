@@ -1,0 +1,269 @@
+{% extends "app/layout.html" %}
+{% block title %}Configurá tu perfil — JobAgent LATAM{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto" x-data="onboarding()">
+
+  <!-- Header -->
+  <div class="mb-8">
+    <h1 class="text-2xl font-black text-slate-900">Configurá tu perfil</h1>
+    <p class="text-slate-400 mt-1 text-sm">El agente necesita esta info para encontrar las vacantes perfectas para vos.</p>
+  </div>
+
+  <!-- Steps -->
+  <div class="flex items-center gap-2 mb-8">
+    <template x-for="(step, i) in steps" :key="i">
+      <div class="flex items-center gap-2">
+        <div class="flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all"
+          :class="currentStep > i ? 'bg-emerald-500 text-white' : currentStep === i ? 'bg-violet-600 text-white' : 'bg-slate-200 text-slate-400'">
+          <template x-if="currentStep > i">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+          </template>
+          <template x-if="currentStep <= i"><span x-text="i+1"></span></template>
+        </div>
+        <span class="text-xs font-medium" :class="currentStep === i ? 'text-violet-700' : 'text-slate-400'" x-text="step"></span>
+        <template x-if="i < steps.length - 1">
+          <div class="w-6 h-px bg-slate-200 mx-1"></div>
+        </template>
+      </div>
+    </template>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
+
+    <!-- PASO 0: Info personal -->
+    <div x-show="currentStep === 0" x-cloak>
+      <h2 class="text-lg font-bold text-slate-900 mb-5">Información personal</h2>
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="label">Nombre completo</label>
+            <input type="text" x-model="form.full_name" class="input" placeholder="Marcelo Rodríguez"/>
+          </div>
+          <div>
+            <label class="label">Email</label>
+            <input type="email" x-model="form.email" class="input" placeholder="vos@ejemplo.com"/>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="label">Teléfono</label>
+            <input type="text" x-model="form.phone" class="input" placeholder="+54 11 1234-5678"/>
+          </div>
+          <div>
+            <label class="label">Ubicación</label>
+            <input type="text" x-model="form.location" class="input" placeholder="Buenos Aires, Argentina"/>
+          </div>
+        </div>
+        <div>
+          <label class="label">LinkedIn (opcional)</label>
+          <input type="url" x-model="form.linkedin_url" class="input" placeholder="https://linkedin.com/in/tu-perfil"/>
+        </div>
+        <div>
+          <label class="label">Título profesional</label>
+          <input type="text" x-model="form.headline" class="input" placeholder="Ej: QA Analyst Junior | Manual & Automation"/>
+        </div>
+        <div>
+          <label class="label">Resumen profesional</label>
+          <textarea x-model="form.summary" class="input h-28 resize-none" placeholder="Contá brevemente tu experiencia y qué valor aportás..."></textarea>
+        </div>
+        <div>
+          <label class="label">Nivel de experiencia</label>
+          <select x-model="form.experience_level" class="input">
+            <option value="junior">Junior (0–2 años)</option>
+            <option value="semi_senior">Semi Senior (2–5 años)</option>
+            <option value="senior">Senior (5+ años)</option>
+            <option value="lead">Lead / Manager</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASO 1: Skills -->
+    <div x-show="currentStep === 1" x-cloak>
+      <h2 class="text-lg font-bold text-slate-900 mb-5">Skills y experiencia</h2>
+      <div class="space-y-5">
+        <div>
+          <label class="label">Skills técnicas</label>
+          <p class="text-xs text-slate-400 mb-2">Separadas por coma. Ej: Selenium, Jira, Postman, SQL</p>
+          <input type="text" x-model="hardSkillsRaw" class="input" placeholder="Selenium, Jira, SQL, Python, Postman..."/>
+        </div>
+        <div>
+          <label class="label">Skills blandas</label>
+          <input type="text" x-model="softSkillsRaw" class="input" placeholder="Trabajo en equipo, Comunicación, Proactividad..."/>
+        </div>
+        <div>
+          <label class="label">Idiomas</label>
+          <p class="text-xs text-slate-400 mb-2">Formato: Idioma:Nivel. Ej: Español:Nativo, Inglés:B2</p>
+          <input type="text" x-model="languagesRaw" class="input" placeholder="Español:Nativo, Inglés:B2"/>
+        </div>
+        <div>
+          <label class="label">Experiencia laboral reciente</label>
+          <p class="text-xs text-slate-400 mb-2">Un rol por línea: Empresa | Cargo | Período. Ej: Accenture | QA Analyst | 2022–2024</p>
+          <textarea x-model="experienceRaw" class="input h-28 resize-none" placeholder="Accenture | QA Analyst | 2022–2024&#10;Freelance | Tester Manual | 2021–2022"></textarea>
+        </div>
+        <div>
+          <label class="label">Formación académica</label>
+          <p class="text-xs text-slate-400 mb-2">Un título por línea: Institución | Carrera | Año</p>
+          <textarea x-model="educationRaw" class="input h-20 resize-none" placeholder="UTN | Tecnicatura en Programación | 2023"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASO 2: Preferencias de búsqueda -->
+    <div x-show="currentStep === 2" x-cloak>
+      <h2 class="text-lg font-bold text-slate-900 mb-5">¿Qué trabajo buscás?</h2>
+      <div class="space-y-5">
+        <div>
+          <label class="label">Roles objetivo</label>
+          <p class="text-xs text-slate-400 mb-2">Separados por coma. El agente buscará estas keywords.</p>
+          <input type="text" x-model="targetRolesRaw" class="input" placeholder="QA Analyst, QA Tester, QA Manual, Tester"/>
+        </div>
+        <div>
+          <label class="label">Modalidad preferida</label>
+          <div class="grid grid-cols-4 gap-2 mt-1">
+            <template x-for="m in [{v:'cualquiera',l:'Cualquiera'},{v:'remoto',l:'Remoto'},{v:'hibrido',l:'Híbrido'},{v:'presencial',l:'Presencial'}]">
+              <label class="flex items-center justify-center gap-1 px-3 py-2.5 rounded-xl border text-sm font-medium cursor-pointer transition-all"
+                :class="form.preferred_modality === m.v ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
+                <input type="radio" x-model="form.preferred_modality" :value="m.v" class="sr-only"/>
+                <span x-text="m.l"></span>
+              </label>
+            </template>
+          </div>
+        </div>
+        <div>
+          <label class="label">País preferido</label>
+          <input type="text" x-model="form.preferred_countries[0]" class="input" placeholder="Argentina"/>
+        </div>
+        <div>
+          <label class="label">Empresas a excluir (opcional)</label>
+          <input type="text" x-model="excludeCompaniesRaw" class="input" placeholder="Empresa A, Empresa B..."/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navegación -->
+    <div class="flex items-center justify-between mt-8 pt-6 border-t border-slate-100">
+      <button x-show="currentStep > 0" @click="currentStep--"
+        class="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">
+        ← Atrás
+      </button>
+      <div x-show="currentStep === 0"></div>
+
+      <template x-if="currentStep < steps.length - 1">
+        <button @click="nextStep()"
+          class="ml-auto px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-bold transition-colors shadow-lg shadow-violet-200">
+          Siguiente →
+        </button>
+      </template>
+      <template x-if="currentStep === steps.length - 1">
+        <button @click="save()" :disabled="saving"
+          class="ml-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-200 disabled:opacity-60">
+          <span x-text="saving ? 'Guardando...' : '¡Guardar perfil →'"></span>
+        </button>
+      </template>
+    </div>
+  </div>
+
+  <!-- Success toast -->
+  <div x-show="saved" x-cloak x-transition
+    class="fixed bottom-6 right-6 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-xl font-semibold text-sm flex items-center gap-2">
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    Perfil guardado correctamente
+  </div>
+</div>
+
+<style>
+  .label { display: block; font-size: .8125rem; font-weight: 600; color: #475569; margin-bottom: .375rem; }
+  .input { display: block; width: 100%; padding: .625rem 1rem; border-radius: .75rem; border: 1px solid #e2e8f0; font-size: .875rem; color: #0f172a; outline: none; transition: border-color .15s, box-shadow .15s; background: #fff; }
+  .input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,.1); }
+  select.input { appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right .75rem center; background-size: 1.25rem; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function onboarding() {
+  return {
+    currentStep: 0,
+    steps: ['Personal', 'Skills', 'Preferencias'],
+    saving: false,
+    saved: false,
+    hardSkillsRaw: '',
+    softSkillsRaw: '',
+    languagesRaw: 'Español:Nativo',
+    experienceRaw: '',
+    educationRaw: '',
+    targetRolesRaw: '',
+    excludeCompaniesRaw: '',
+    form: {
+      full_name: '{{ user.full_name }}',
+      email: '{{ user.email }}',
+      phone: '',
+      location: 'Argentina',
+      linkedin_url: '',
+      headline: '',
+      summary: '',
+      experience_level: 'junior',
+      preferred_modality: 'cualquiera',
+      preferred_countries: ['Argentina'],
+    },
+
+    nextStep() { if (this.currentStep < this.steps.length - 1) this.currentStep++; },
+
+    buildProfile() {
+      const splitCsv = s => s.split(',').map(x => x.trim()).filter(Boolean);
+      const hard_skills = splitCsv(this.hardSkillsRaw);
+      const soft_skills = splitCsv(this.softSkillsRaw);
+      const target_roles = splitCsv(this.targetRolesRaw);
+      const exclude_companies = splitCsv(this.excludeCompaniesRaw);
+
+      // Parse languages: "Español:Nativo, Inglés:B2"
+      const languages = {};
+      this.languagesRaw.split(',').forEach(pair => {
+        const [lang, level] = pair.split(':').map(s => s.trim());
+        if (lang && level) languages[lang] = level;
+      });
+
+      // Parse experience: "Empresa | Cargo | Período"
+      const work_experience = this.experienceRaw.split('\n').filter(Boolean).map(line => {
+        const parts = line.split('|').map(s => s.trim());
+        return { company: parts[0]||'', role: parts[1]||'', start_date: parts[2]||'', end_date: 'Actual', description: '', achievements: [] };
+      });
+
+      // Parse education: "Institución | Carrera | Año"
+      const education = this.educationRaw.split('\n').filter(Boolean).map(line => {
+        const parts = line.split('|').map(s => s.trim());
+        return { institution: parts[0]||'', degree: parts[1]||'', field: parts[1]||'', start_year: 2020, end_year: parseInt(parts[2])||null, completed: true };
+      });
+
+      return {
+        ...this.form,
+        hard_skills, soft_skills, languages, work_experience, education,
+        target_roles, exclude_companies,
+        target_industries: [],
+        preferred_portals: ['computrabajo', 'bumeran'],
+      };
+    },
+
+    async save() {
+      this.saving = true;
+      try {
+        const profile = this.buildProfile();
+        const r = await fetch('/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(profile),
+        });
+        if (r.ok) {
+          this.saved = true;
+          setTimeout(() => { window.location.href = '/app/dashboard'; }, 1500);
+        }
+      } finally {
+        this.saving = false;
+      }
+    }
+  }
+}
+</script>
+{% endblock %}
