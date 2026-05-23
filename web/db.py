@@ -23,6 +23,19 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+def _migrate(conn: sqlite3.Connection):
+    migrations = [
+        ("users", "runs_used",    "INTEGER DEFAULT 0"),
+        ("users", "upgraded_at",  "TEXT"),
+    ]
+    for table, col, defval in migrations:
+        try:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {defval}")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # column already exists
+
+
 def init_db():
     with _connect() as conn:
         conn.executescript("""
@@ -32,6 +45,8 @@ def init_db():
                 password    TEXT NOT NULL,
                 full_name   TEXT NOT NULL,
                 plan        TEXT DEFAULT 'free',
+                runs_used   INTEGER DEFAULT 0,
+                upgraded_at TEXT,
                 created_at  TEXT NOT NULL,
                 last_login  TEXT
             );
@@ -61,6 +76,7 @@ def init_db():
             );
         """)
         conn.commit()
+        _migrate(conn)
 
 
 # ─── Usuarios ─────────────────────────────────────────────────────────────────
@@ -92,6 +108,24 @@ def get_user_by_id(user_id: int) -> Optional[dict]:
     with _connect() as conn:
         row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         return dict(row) if row else None
+
+
+def increment_run_count(user_id: int):
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE users SET runs_used = COALESCE(runs_used, 0) + 1 WHERE id = ?",
+            (user_id,),
+        )
+        conn.commit()
+
+
+def set_user_plan(user_id: int, plan: str):
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE users SET plan = ?, upgraded_at = ? WHERE id = ?",
+            (plan, datetime.now().isoformat(), user_id),
+        )
+        conn.commit()
 
 
 def update_last_login(user_id: int):

@@ -1,3 +1,5 @@
+import os
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -8,6 +10,8 @@ from modules.tracker.database import ApplicationTracker
 
 router = APIRouter(prefix="/app")
 tracker = ApplicationTracker()
+
+FREE_RUNS_LIMIT = int(os.environ.get("FREE_RUNS_LIMIT", "3"))
 
 
 def _auth(request: Request):
@@ -29,11 +33,15 @@ async def dashboard(request: Request):
     recent = tracker.get_applications()[:10]
     profile = db.get_profile(user_token["sub"])
 
+    runs_used = user.get("runs_used") or 0 if user else 0
+
     return templates.TemplateResponse(request, "app/dashboard.html", {
         "user": user,
         "stats": stats,
         "recent_apps": recent,
         "has_profile": profile is not None,
+        "runs_used": runs_used,
+        "free_runs_limit": FREE_RUNS_LIMIT,
         "active": "dashboard",
     })
 
@@ -98,6 +106,27 @@ async def applications_page(request: Request):
         "applications": apps,
         "stats": stats,
         "active": "applications",
+    })
+
+
+@router.get("/upgrade", response_class=HTMLResponse)
+async def upgrade_page(request: Request):
+    try:
+        user_token = _auth(request)
+    except Exception:
+        return RedirectResponse("/login", status_code=302)
+
+    user = db.get_user_by_id(user_token["sub"])
+    runs_used = user.get("runs_used") or 0 if user else 0
+
+    return templates.TemplateResponse(request, "app/upgrade.html", {
+        "user": user,
+        "runs_used": runs_used,
+        "free_runs_limit": FREE_RUNS_LIMIT,
+        "mp_checkout_url": os.environ.get("MP_CHECKOUT_URL", "#"),
+        "support_whatsapp": os.environ.get("SUPPORT_WHATSAPP", ""),
+        "support_email": os.environ.get("SUPPORT_EMAIL", ""),
+        "active": "upgrade",
     })
 
 

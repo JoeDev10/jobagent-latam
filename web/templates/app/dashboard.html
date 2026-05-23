@@ -21,6 +21,45 @@
   {% endif %}
 </div>
 
+{% if user.plan == 'free' %}
+<!-- Free plan banner -->
+{% set runs_left = free_runs_limit - runs_used %}
+{% if runs_left <= 0 %}
+<div class="bg-red-50 border border-red-200 rounded-2xl p-5 mb-6 flex items-center justify-between gap-4">
+  <div class="flex items-center gap-3">
+    <div class="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+      <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+    </div>
+    <div>
+      <div class="font-bold text-red-800 text-sm">Límite de búsquedas alcanzado</div>
+      <div class="text-red-600 text-xs mt-0.5">Agotaste tus {{ free_runs_limit }} búsquedas gratuitas. Actualizá para seguir.</div>
+    </div>
+  </div>
+  <a href="/app/upgrade" class="flex-shrink-0 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">Actualizar →</a>
+</div>
+{% elif runs_left == 1 %}
+<div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6 flex items-center justify-between gap-4">
+  <div class="flex items-center gap-3">
+    <div class="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+      <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    </div>
+    <div>
+      <div class="font-bold text-amber-800 text-sm">Te queda 1 búsqueda gratuita</div>
+      <div class="text-amber-600 text-xs mt-0.5">Usaste {{ runs_used }} de {{ free_runs_limit }}. Actualizá a Pro para búsquedas ilimitadas.</div>
+    </div>
+  </div>
+  <a href="/app/upgrade" class="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">Ver Pro →</a>
+</div>
+{% else %}
+<div class="bg-violet-50 border border-violet-100 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4">
+  <div class="flex items-center gap-3">
+    <div class="text-sm text-violet-700">Plan gratuito · <strong>{{ runs_left }}</strong> de {{ free_runs_limit }} búsquedas restantes</div>
+  </div>
+  <a href="/app/upgrade" class="text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors">Actualizar a Pro →</a>
+</div>
+{% endif %}
+{% endif %}
+
 {% if not has_profile %}
 <!-- Onboarding CTA -->
 <div class="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl p-6 mb-8 text-white relative overflow-hidden">

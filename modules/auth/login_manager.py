@@ -19,7 +19,7 @@ from core import get_logger, settings
 
 logger = get_logger(__name__)
 
-SESSIONS_DIR = Path("data/sessions")
+SESSIONS_DIR = Path(__file__).parent.parent.parent / "data" / "sessions"
 
 
 class LoginManager:
@@ -33,8 +33,37 @@ class LoginManager:
     async def ensure_logged_in(self, context: BrowserContext, portal: str) -> bool:
         """
         Garantiza que el contexto esté autenticado en el portal.
-        Retorna True si se logró autenticar, False si no hay credenciales.
+
+        Estrategia (en orden de preferencia):
+        1. Cargar cookies del Chrome real del usuario (browser_cookie3)
+           — INVISIBLE al anti-bot porque las cookies vienen de un Chrome real.
+        2. Cargar cookies guardadas en disco (data/sessions/<portal>.json)
+           de sesiones anteriores del bot.
+        3. Login automatizado con email/password del .env (fallback frágil).
         """
+        # Paso 1: intentar leer cookies del Chrome del usuario
+        try:
+            from .cookie_loader import load_cookies_for_portal, has_auth_cookies
+            real_cookies = load_cookies_for_portal(portal)
+            if real_cookies:
+                await context.add_cookies(real_cookies)
+                # Persistir para sesiones futuras
+                await self._save_cookies(context, portal)
+                logger.info(f"[{portal}] {len(real_cookies)} cookies cargadas desde Chrome real")
+                # Verificar si parecen tener auth
+                if has_auth_cookies(real_cookies, portal):
+                    logger.info(f"[{portal}] cookies tienen señales de autenticación ✓")
+                    return True
+                else:
+                    logger.warning(
+                        f"[{portal}] cookies cargadas pero sin tokens de auth obvios — "
+                        f"voy a verificar contra el sitio"
+                    )
+                    # Continuamos al verify para chequear si igual funciona
+        except Exception as e:
+            logger.warning(f"[{portal}] No pude leer cookies del navegador real: {e}")
+
+        # Paso 2 y 3: handler clásico (cookies en disco + login automatizado)
         handlers = {
             "computrabajo": self._ensure_computrabajo,
             "bumeran": self._ensure_bumeran,
@@ -83,6 +112,13 @@ class LoginManager:
             await page.close()
 
     async def _check_computrabajo_session(self, page: Page) -> bool:
+        """
+        Verifica sesión activa.
+        Estrategia: ir a /candidato/cv y confirmar que la página contiene
+        elementos visibles sólo cuando estás logueado (link 'Cerrar sesión'
+        o nombre de usuario en el header). El simple chequeo de URL no es
+        confiable porque Computrabajo a veces no redirige aun sin sesión.
+        """
         try:
             await page.goto(
                 "https://ar.computrabajo.com/candidato/cv",
@@ -90,29 +126,126 @@ class LoginManager:
                 timeout=15000,
             )
             await asyncio.sleep(2)
-            url = page.url
-            return "candidato/cv" in url or "candidato/perfil" in url
+
+            # Si la URL contiene 'acceso' o 'login', claramente no hay sesión
+            url = page.url.lower()
+            if "acceso" in url or "login" in url or "iniciar-sesion" in url:
+                return False
+
+            # Buscar evidencia concreta de estar logueado
+            evidence = await page.evaluate("""
+                () => {
+                    const t = (document.body.innerText || '').toLowerCase();
+                    return {
+                        has_logout: /cerrar\\s*sesi[oó]n|salir/.test(t),
+                        has_my_account: /mi\\s*cuenta|mis\\s*postulaciones|mi\\s*perfil/.test(t),
+                        has_login_link: /iniciar\\s*sesi[oó]n|^ingresar$/m.test(t),
+                    };
+                }
+            """)
+            # Logueado si vemos opciones de cuenta y NO el link de iniciar sesión
+            return (evidence["has_logout"] or evidence["has_my_account"]) and not evidence["has_login_link"]
         except Exception:
             return False
 
     async def _login_computrabajo(self, page: Page) -> bool:
+        """
+        Login en Computrabajo (flujo 2026):
+        Migró a OAuth en secure.computrabajo.com. Hay que entrar vía el link
+        'Iniciar sesión' del home, no directo a /Account/Login (redirige sin
+        el contexto OAuth correcto).
+        """
         try:
+            # 1. Ir al home
             await page.goto(
-                "https://ar.computrabajo.com/candidato/acceso",
+                "https://ar.computrabajo.com/",
                 wait_until="domcontentloaded",
             )
+            try:
+                await page.wait_for_load_state("networkidle", timeout=10000)
+            except Exception:
+                pass
+            await asyncio.sleep(1)
+
+            # 2. Click en 'Iniciar sesión' / 'Ingresar'
+            iniciar_clicked = False
+            for sel in [
+                'a:has-text("Iniciar sesión")',
+                'a:has-text("Iniciar Sesión")',
+                'a:has-text("Ingresar")',
+                'button:has-text("Iniciar sesión")',
+                'a[href*="acceso"]',
+                'a[href*="login"]',
+                'a[href*="Account/Login"]',
+            ]:
+                try:
+                    el = await page.query_selector(sel)
+                    if el:
+                        await el.click()
+                        iniciar_clicked = True
+                        logger.info(f"Computrabajo: click en login con {sel}")
+                        break
+                except Exception:
+                    continue
+
+            if not iniciar_clicked:
+                logger.error("Computrabajo: no encontré link 'Iniciar sesión' en home")
+                return False
+
+            # 3. Esperar la página de login
+            try:
+                await page.wait_for_load_state("networkidle", timeout=15000)
+            except Exception:
+                pass
             await asyncio.sleep(2)
 
-            await page.fill('input[name="email"], input[type="email"]', settings.computrabajo_email)
-            await asyncio.sleep(random.uniform(0.5, 1.0))
-            await page.fill('input[name="pass"], input[name="password"], input[type="password"]', settings.computrabajo_password)
-            await asyncio.sleep(random.uniform(0.5, 1.0))
+            # Esperar el campo de email
+            try:
+                await page.wait_for_selector('input[name="Email"], input#Email', timeout=15000)
+            except Exception:
+                logger.error(f"Computrabajo: no apareció el campo Email (URL: {page.url})")
+                return False
 
-            await page.click('button[type="submit"], input[type="submit"]')
+            # Llenar email (case-sensitive: name="Email" con E mayúscula)
+            await page.fill('input[name="Email"], input#Email', settings.computrabajo_email)
+            await asyncio.sleep(random.uniform(0.5, 1.2))
+
+            # Llenar contraseña
+            await page.fill('input[name="Password"], input#password', settings.computrabajo_password)
+            await asyncio.sleep(random.uniform(0.5, 1.2))
+
+            # Click en Continuar
+            clicked = False
+            for sel in [
+                'button:has-text("Continuar")',
+                'button[type="submit"]',
+                'input[type="submit"]',
+            ]:
+                try:
+                    btn = await page.query_selector(sel)
+                    if btn:
+                        await btn.click()
+                        clicked = True
+                        break
+                except Exception:
+                    continue
+            if not clicked:
+                logger.error("Computrabajo: no se encontró botón Continuar")
+                return False
+
+            # Esperar redirect post-login
+            try:
+                await page.wait_for_load_state("networkidle", timeout=20000)
+            except Exception:
+                pass
             await asyncio.sleep(3)
 
-            url = page.url
-            return "candidato" in url and "acceso" not in url
+            url = page.url.lower()
+            # Éxito si NO seguimos en /Account/Login
+            ok = "account/login" not in url
+            if not ok:
+                logger.warning(f"Computrabajo: URL post-login inesperada: {page.url}")
+            return ok
         except Exception as e:
             logger.error(f"Computrabajo login error: {e}")
             return False

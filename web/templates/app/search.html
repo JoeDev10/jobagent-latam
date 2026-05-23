@@ -4,6 +4,30 @@
 {% block content %}
 <div x-data="searchRunner()" class="max-w-3xl mx-auto">
 
+  <!-- Upgrade modal (aparece cuando se alcanza el límite) -->
+  <div x-show="limitReached" x-cloak
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
+      <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+      </div>
+      <h2 class="text-xl font-black text-slate-900 mb-2">Límite de búsquedas alcanzado</h2>
+      <p class="text-slate-500 text-sm mb-6" x-text="limitMsg"></p>
+      <div class="flex flex-col gap-3">
+        <a href="/app/upgrade"
+          class="bg-violet-600 hover:bg-violet-700 text-white px-6 py-3 rounded-xl font-bold transition-colors">
+          Ver plan Pro — $15/mes
+        </a>
+        <button @click="limitReached = false"
+          class="text-slate-400 hover:text-slate-600 text-sm transition-colors">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Header -->
   <div class="mb-8">
     <h1 class="text-2xl font-black text-slate-900">Buscar & Aplicar</h1>
@@ -174,6 +198,8 @@ function searchRunner() {
     done: false,
     logs: [],
     summary: {},
+    limitReached: false,
+    limitMsg: '',
     config: {
       keywordsRaw: '{{ settings.get("preferred_portals", "") }}' || 'QA Analyst, QA Tester, Tester',
       portals: {{ (settings.preferred_portals or ['computrabajo']) | tojson }},
@@ -221,6 +247,12 @@ function searchRunner() {
           body: JSON.stringify(body),
         });
         const data = await r.json();
+        if (r.status === 402) {
+          this.limitReached = true;
+          this.limitMsg = data.msg || 'Alcanzaste el límite de búsquedas gratuitas.';
+          this.running = false;
+          return;
+        }
         if (!r.ok || !data.run_id) { this.addLog('error', data.error || 'No se pudo iniciar el agente.'); this.running = false; return; }
         runId = data.run_id;
       } catch(e) { this.addLog('error', 'Error de conexión.'); this.running = false; return; }

@@ -74,6 +74,16 @@
     {% endfor %}
   </nav>
 
+  <!-- Upgrade CTA for free users -->
+  {% if user and user.plan != 'pro' %}
+  <div class="px-4 pb-2">
+    <a href="/app/upgrade" class="flex items-center gap-2 w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white px-3 py-2.5 rounded-xl text-xs font-bold transition-all">
+      <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      Actualizar a Pro — $15/mes
+    </a>
+  </div>
+  {% endif %}
+
   <!-- User at bottom -->
   <div class="px-4 py-4 border-t border-slate-100">
     <div class="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-slate-50 transition-colors">
@@ -82,7 +92,13 @@
       </div>
       <div class="flex-1 min-w-0">
         <div class="text-sm font-semibold text-slate-800 truncate">{{ user.full_name if user else "" }}</div>
-        <div class="text-xs text-slate-400 truncate">{{ user.email if user else "" }}</div>
+        <div class="flex items-center gap-1.5 mt-0.5">
+          {% if user and user.plan == 'pro' %}
+          <span class="text-xs bg-violet-100 text-violet-700 font-bold px-1.5 py-0.5 rounded-full">Pro</span>
+          {% else %}
+          <span class="text-xs text-slate-400">Plan gratuito</span>
+          {% endif %}
+        </div>
       </div>
       <a href="/logout" class="text-slate-400 hover:text-red-500 transition-colors" title="Cerrar sesión">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>

@@ -106,7 +106,7 @@ def cmd_search():
     # Cargar config guardada o configurar
     config_path = Path("data/last_search_config.json")
     if config_path.exists() and Confirm.ask("¿Usar la última configuración de búsqueda?", default=True):
-        data = json.loads(config_path.read_text(encoding="utf-8"))
+        data = json.loads(config_path.read_text(encoding="utf-8-sig"))
         config = SearchConfig(
             keywords=data["keywords"],
             location=data.get("location", "Argentina"),

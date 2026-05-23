@@ -7,6 +7,7 @@ Incluye:
   - Rotación de user-agents
 """
 import asyncio
+import os
 import random
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator
@@ -92,14 +93,35 @@ class BaseScraper(ABC):
 
     portal_name: str = "base"
 
-    def __init__(self):
+    def __init__(self, cdp_url: str | None = None):
+        """
+        cdp_url: si se pasa (ej 'http://localhost:9222'), el scraper se conecta
+        a un Chrome ya abierto vía DevTools Protocol en vez de lanzar uno nuevo.
+        Esto evita la detección anti-bot porque ES el Chrome real del usuario.
+        """
         self.browser: Browser | None = None
         self.context: BrowserContext | None = None
+        self.cdp_url = cdp_url or os.environ.get("CDP_URL")
         self._user_agent = random.choice(USER_AGENTS)
         self._viewport = random.choice(VIEWPORTS)
+        self._owns_browser = True
 
     async def __aenter__(self):
         self._playwright = await async_playwright().start()
+
+        if self.cdp_url:
+            # ── Modo CDP: nos conectamos al Chrome del usuario ──
+            logger.info(f"Conectando a Chrome vía CDP: {self.cdp_url}")
+            self.browser = await self._playwright.chromium.connect_over_cdp(self.cdp_url)
+            self._owns_browser = False
+            # Reusar el contexto existente (que tiene tus cookies / login)
+            if self.browser.contexts:
+                self.context = self.browser.contexts[0]
+            else:
+                self.context = await self.browser.new_context()
+            return self
+
+        # ── Modo clásico: launchamos browser propio ──
         self.browser = await self._playwright.chromium.launch(
             headless=settings.headless,
             slow_mo=settings.slow_mo,
@@ -136,10 +158,12 @@ class BaseScraper(ABC):
         return self
 
     async def __aexit__(self, *args):
-        if self.context:
-            await self.context.close()
-        if self.browser:
-            await self.browser.close()
+        # En modo CDP no cerramos ni context ni browser (es del usuario)
+        if self._owns_browser:
+            if self.context:
+                await self.context.close()
+            if self.browser:
+                await self.browser.close()
         await self._playwright.stop()
 
     async def new_page(self) -> Page:

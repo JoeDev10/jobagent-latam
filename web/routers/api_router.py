@@ -10,6 +10,7 @@ Endpoints:
   PUT  /api/applications/{id}/status — actualizar estado
 """
 import asyncio
+import hmac
 import json
 import os
 import sys
@@ -27,6 +28,8 @@ from modules.tracker.database import ApplicationTracker
 
 router = APIRouter(prefix="/api")
 tracker = ApplicationTracker()
+
+FREE_RUNS_LIMIT = int(os.environ.get("FREE_RUNS_LIMIT", "3"))
 
 # Cola de eventos por run_id → asyncio.Queue
 _queues: dict[str, asyncio.Queue] = {}
@@ -117,14 +120,22 @@ async def start_run(request: Request):
     if not user:
         return JSONResponse({"error": "No autorizado"}, status_code=401)
 
+    user_data = db.get_user_by_id(user["sub"])
+    if user_data and user_data.get("plan", "free") == "free":
+        runs_used = user_data.get("runs_used") or 0
+        if runs_used >= FREE_RUNS_LIMIT:
+            return JSONResponse({
+                "error": "limite_alcanzado",
+                "msg": f"Agotaste tus {FREE_RUNS_LIMIT} búsquedas gratuitas. Actualizá a Pro para búsquedas ilimitadas.",
+                "upgrade_url": "/app/upgrade",
+            }, status_code=402)
+
     data = await request.json()
     run_id = str(uuid.uuid4())
     queue: asyncio.Queue = asyncio.Queue()
     _queues[run_id] = queue
 
-    # Lanzar bot en background
     asyncio.create_task(_run_bot(user["sub"], data, queue))
-
     return JSONResponse({"run_id": run_id})
 
 
@@ -137,6 +148,7 @@ async def _run_bot(user_id: int, config: dict, queue: asyncio.Queue):
     base = Path(__file__).parent.parent.parent
     sys.path.insert(0, str(base))
 
+    _started = False  # True cuando el agente realmente arranca (para contabilizar el run)
     try:
         await _emit(queue, "info", "Cargando configuración...")
 
@@ -215,6 +227,7 @@ async def _run_bot(user_id: int, config: dict, queue: asyncio.Queue):
         def sync_callback(msg: str):
             asyncio.ensure_future(_emit(queue, "info", msg))
 
+        _started = True
         agent = JobAgent()
         results = await agent.run(profile, search_config, interactive=False, progress_callback=sync_callback)
 
@@ -225,6 +238,8 @@ async def _run_bot(user_id: int, config: dict, queue: asyncio.Queue):
     except Exception as e:
         await _emit(queue, "error", f"Error inesperado: {str(e)[:300]}")
     finally:
+        if _started:
+            db.increment_run_count(user_id)
         await queue.put(None)  # señal de fin
 
 
@@ -283,3 +298,32 @@ async def progress_stream(run_id: str, request: Request):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ─── Admin ───────────────────────────────────────────────────────────────────
+
+@router.post("/admin/upgrade")
+async def admin_upgrade(request: Request):
+    """Actualiza el plan de un usuario. Requiere X-Admin-Secret header."""
+    admin_secret = os.environ.get("ADMIN_SECRET", "")
+    if not admin_secret:
+        return JSONResponse({"error": "Admin no configurado en el servidor"}, status_code=503)
+    provided = request.headers.get("X-Admin-Secret", "")
+    if not hmac.compare_digest(provided.encode(), admin_secret.encode()):
+        return JSONResponse({"error": "No autorizado"}, status_code=401)
+
+    data = await request.json()
+    email = data.get("email", "").lower().strip()
+    plan = data.get("plan", "pro")
+
+    if plan not in ("free", "pro"):
+        return JSONResponse({"error": "Plan invalido. Usar 'free' o 'pro'"}, status_code=400)
+    if not email:
+        return JSONResponse({"error": "Falta email"}, status_code=400)
+
+    user = db.get_user_by_email(email)
+    if not user:
+        return JSONResponse({"error": f"Usuario '{email}' no encontrado"}, status_code=404)
+
+    db.set_user_plan(user["id"], plan)
+    return JSONResponse({"ok": True, "email": email, "plan": plan, "user_id": user["id"]})

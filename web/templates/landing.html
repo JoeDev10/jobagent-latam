@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>JobAgent LATAM — Tu próximo trabajo, en piloto automático</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -265,6 +266,43 @@
         </ul>
         <a href="/register" class="block text-center bg-white hover:bg-slate-50 text-violet-700 px-6 py-3 rounded-xl font-bold transition-colors">Empezar prueba gratis →</a>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="py-24 px-6 bg-slate-50">
+  <div class="max-w-3xl mx-auto">
+    <div class="text-center mb-16">
+      <h2 class="text-4xl font-black text-slate-900 mb-4">Preguntas frecuentes</h2>
+      <p class="text-lg text-slate-500">Todo lo que necesitás saber antes de empezar.</p>
+    </div>
+    <div class="space-y-4" x-data="{ open: null }">
+      {% set faqs = [
+        ("¿Necesito saber programar?", "Para nada. La app está diseñada para cualquier persona. Solo completás tu perfil, configurás los portales y el bot hace el resto. No hay código ni instalaciones."),
+        ("¿El bot aplica por mí sin que yo vea nada?", "Sí, pero vos tenés el control. Podés ver en tiempo real qué está haciendo el agente, revisar las cartas de presentación que generó y el historial completo de aplicaciones. Si preferís revisar antes de aplicar, también podés configurarlo en modo manual."),
+        ("¿Funciona con mi cuenta de Computrabajo y Bumeran?", "Sí. El bot usa tus propias credenciales para entrar a los portales y aplica como si fueras vos. Las empresas ven tu aplicación exactamente igual que si la hubieras mandado a mano."),
+        ("¿Qué pasa si el formulario tiene preguntas de selección?", "La IA las responde automáticamente basándose en tu perfil. Si hay preguntas de opción múltiple o de texto libre, Groq las completa con respuestas coherentes con tu experiencia."),
+        ("¿Mis datos están seguros?", "Tus credenciales se guardan encriptadas y nunca se comparten con terceros. El bot corre en el servidor y nadie más tiene acceso a tu cuenta. Podés eliminarlo cuando quieras."),
+        ("¿Qué pasa si quiero cancelar?", "En cualquier momento. No hay contratos ni permanencia mínima. Escribinos y te cancelamos al toque, sin preguntas."),
+      ] %}
+      {% for q, a in faqs %}
+      <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+        <button @click="open = open === {{ loop.index }} ? null : {{ loop.index }}"
+          class="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-slate-50 transition-colors">
+          <span class="font-semibold text-slate-900">{{ q }}</span>
+          <svg class="w-5 h-5 text-slate-400 flex-shrink-0 transition-transform duration-200"
+            :class="open === {{ loop.index }} ? 'rotate-180' : ''"
+            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div x-show="open === {{ loop.index }}" x-cloak
+          class="px-6 pb-5 text-slate-500 text-sm leading-relaxed border-t border-slate-50">
+          <p class="pt-4">{{ a }}</p>
+        </div>
+      </div>
+      {% endfor %}
     </div>
   </div>
 </section>

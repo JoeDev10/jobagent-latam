@@ -7,9 +7,19 @@ services:
     envVars:
       - key: SECRET_KEY
         generateValue: true
+      - key: ADMIN_SECRET
+        generateValue: true
       - key: DATA_DIR
         value: /app/data
       - key: PORT
         value: 10000
+      - key: FREE_RUNS_LIMIT
+        value: "3"
       - key: GROQ_API_KEY
+        sync: false
+      - key: MP_CHECKOUT_URL
+        sync: false
+      - key: SUPPORT_WHATSAPP
+        sync: false
+      - key: SUPPORT_EMAIL
         sync: false
