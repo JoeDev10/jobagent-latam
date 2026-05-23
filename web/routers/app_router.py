@@ -15,27 +15,35 @@ FREE_RUNS_LIMIT = int(os.environ.get("FREE_RUNS_LIMIT", "3"))
 
 
 def _auth(request: Request):
-    user = get_current_user(request)
-    if not user:
+    user_token = get_current_user(request)
+    if not user_token:
         raise Exception("unauth")
-    return user
+    user = db.get_user_by_id(user_token["sub"])
+    if not user:
+        raise Exception("user_not_found")
+    return user_token, user
+
+
+def _login_redirect():
+    r = RedirectResponse("/login", status_code=302)
+    r.delete_cookie("session")
+    return r
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     try:
-        user_token = _auth(request)
+        user_token, user = _auth(request)
     except Exception:
-        return RedirectResponse("/login", status_code=302)
+        return _login_redirect()
 
-    user = db.get_user_by_id(user_token["sub"])
     uid = user_token["sub"]
     stats = tracker.get_stats(user_id=uid)
     recent = tracker.get_applications(user_id=uid)[:10]
     profile = db.get_profile(uid)
     settings = db.get_settings(uid)
 
-    runs_used = user.get("runs_used") or 0 if user else 0
+    runs_used = user.get("runs_used") or 0
     has_credentials = bool(
         settings.get("computrabajo_email") or
         settings.get("bumeran_email") or
@@ -57,10 +65,9 @@ async def dashboard(request: Request):
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding(request: Request):
     try:
-        user_token = _auth(request)
+        user_token, user = _auth(request)
     except Exception:
-        return RedirectResponse("/login", status_code=302)
-    user = db.get_user_by_id(user_token["sub"])
+        return _login_redirect()
     return templates.TemplateResponse(request, "app/onboarding.html", {
         "user": user,
         "active": "onboarding",
@@ -70,11 +77,10 @@ async def onboarding(request: Request):
 @router.get("/profile", response_class=HTMLResponse)
 async def profile_page(request: Request):
     try:
-        user_token = _auth(request)
+        user_token, user = _auth(request)
     except Exception:
-        return RedirectResponse("/login", status_code=302)
+        return _login_redirect()
 
-    user = db.get_user_by_id(user_token["sub"])
     profile = db.get_profile(user_token["sub"]) or {}
     return templates.TemplateResponse(request, "app/profile.html", {
         "user": user,
@@ -86,13 +92,13 @@ async def profile_page(request: Request):
 @router.get("/search", response_class=HTMLResponse)
 async def search_page(request: Request):
     try:
-        user_token = _auth(request)
+        user_token, user = _auth(request)
     except Exception:
-        return RedirectResponse("/login", status_code=302)
+        return _login_redirect()
 
-    user = db.get_user_by_id(user_token["sub"])
-    settings = db.get_settings(user_token["sub"])
-    profile = db.get_profile(user_token["sub"]) or {}
+    uid = user_token["sub"]
+    settings = db.get_settings(uid)
+    profile = db.get_profile(uid) or {}
     default_keywords = ", ".join(profile.get("target_roles", [])) or "QA Analyst, QA Tester, Tester de Software"
     has_credentials = bool(
         settings.get("computrabajo_email") or
@@ -113,11 +119,10 @@ async def search_page(request: Request):
 @router.get("/applications", response_class=HTMLResponse)
 async def applications_page(request: Request):
     try:
-        user_token = _auth(request)
+        user_token, user = _auth(request)
     except Exception:
-        return RedirectResponse("/login", status_code=302)
+        return _login_redirect()
 
-    user = db.get_user_by_id(user_token["sub"])
     uid = user_token["sub"]
     apps = tracker.get_applications(user_id=uid)
     stats = tracker.get_stats(user_id=uid)
@@ -132,12 +137,11 @@ async def applications_page(request: Request):
 @router.get("/upgrade", response_class=HTMLResponse)
 async def upgrade_page(request: Request):
     try:
-        user_token = _auth(request)
+        user_token, user = _auth(request)
     except Exception:
-        return RedirectResponse("/login", status_code=302)
+        return _login_redirect()
 
-    user = db.get_user_by_id(user_token["sub"])
-    runs_used = user.get("runs_used") or 0 if user else 0
+    runs_used = user.get("runs_used") or 0
 
     return templates.TemplateResponse(request, "app/upgrade.html", {
         "user": user,
@@ -153,11 +157,10 @@ async def upgrade_page(request: Request):
 @router.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request):
     try:
-        user_token = _auth(request)
+        user_token, user = _auth(request)
     except Exception:
-        return RedirectResponse("/login", status_code=302)
+        return _login_redirect()
 
-    user = db.get_user_by_id(user_token["sub"])
     settings = db.get_settings(user_token["sub"])
     setup = request.query_params.get("setup") == "1"
     return templates.TemplateResponse(request, "app/settings.html", {
