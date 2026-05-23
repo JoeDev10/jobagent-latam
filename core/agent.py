@@ -50,6 +50,7 @@ class JobAgent:
         config: SearchConfig,
         interactive: bool = True,
         progress_callback: Optional[Callable[[str], None]] = None,
+        skip_cover_letters: bool = False,
     ) -> list[Application]:
         self._progress = progress_callback
         console.rule("[bold blue]JobAgent LATAM — Iniciando búsqueda[/bold blue]")
@@ -92,8 +93,10 @@ class JobAgent:
         self._print_jobs_table(relevant_jobs)
         await self.notifier.notify_top_jobs(relevant_jobs, max_show=5)
 
-        # 3. Generación de cartas + preparación de aplicaciones
-        applications = await self._prepare_applications(relevant_jobs, profile)
+        # 3. Preparación de aplicaciones (cartas opcionales)
+        applications = await self._prepare_applications(
+            relevant_jobs, profile, generate_letters=not skip_cover_letters
+        )
 
         # 4. Guardar en tracker
         for app in applications:
@@ -207,10 +210,11 @@ class JobAgent:
         return relevant
 
     async def _prepare_applications(
-        self, jobs: list[JobListing], profile: UserProfile
+        self, jobs: list[JobListing], profile: UserProfile, generate_letters: bool = True
     ) -> list[Application]:
-        console.print(f"\n[blue]Generando {len(jobs)} cartas de presentación...[/blue]")
-        self._emit(f"Generando {len(jobs)} cartas de presentación...")
+        if generate_letters:
+            console.print(f"\n[blue]Generando {len(jobs)} cartas de presentación...[/blue]")
+            self._emit(f"Generando {len(jobs)} cartas de presentación...")
 
         applications = []
         for i, job in enumerate(jobs, 1):
@@ -220,18 +224,22 @@ class JobAgent:
                 profile=profile,
                 status=ApplicationStatus.PENDING,
             )
-            try:
-                app = await self.cover_letter_gen.generate_for_application(app)
-                applications.append(app)
-                console.print(f"  [{i}/{len(jobs)}] Carta lista: {job.title[:40]}")
-                self._emit(f"Carta {i}/{len(jobs)}: {job.title[:50]}")
-            except Exception as e:
-                logger.warning(f"Error generando carta para {job.title}: {e}")
-                applications.append(app)  # agregar igual, sin carta
-            if i < len(jobs):
-                await asyncio.sleep(4)
+            if generate_letters:
+                try:
+                    app = await self.cover_letter_gen.generate_for_application(app)
+                    console.print(f"  [{i}/{len(jobs)}] Carta lista: {job.title[:40]}")
+                    self._emit(f"Carta {i}/{len(jobs)}: {job.title[:50]}")
+                except Exception as e:
+                    logger.warning(f"Error generando carta para {job.title}: {e}")
+                if i < len(jobs):
+                    await asyncio.sleep(4)
+            applications.append(app)
 
-        console.print(f"[green]✓ {len(applications)} aplicaciones preparadas[/green]")
+        if generate_letters:
+            console.print(f"[green]✓ {len(applications)} aplicaciones preparadas[/green]")
+        else:
+            self._emit(f"Guardando {len(applications)} vacantes en tu panel...")
+
         return applications
 
     async def _apply_all(self, applications: list[Application]) -> list[Application]:

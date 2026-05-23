@@ -2,8 +2,12 @@ services:
   - type: web
     name: jobagent-latam
     runtime: docker
-    plan: free
+    plan: starter
     healthCheckPath: /
+    disk:
+      name: vacantia-data
+      mountPath: /app/data
+      sizeGB: 1
     envVars:
       - key: SECRET_KEY
         generateValue: true

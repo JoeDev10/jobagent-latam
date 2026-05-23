@@ -314,7 +314,12 @@ async def _run_bot(user_id: int, config: dict, queue: asyncio.Queue):
 
         _started = True
         agent = JobAgent()
-        results = await agent.run(profile, search_config, interactive=False, progress_callback=sync_callback)
+        results = await agent.run(
+            profile, search_config,
+            interactive=False,
+            progress_callback=sync_callback,
+            skip_cover_letters=True,
+        )
 
         total = len(results)
         tracker.stamp_user_id(user_id, [a.id for a in results])
