@@ -1,5 +1,5 @@
-{% extends "app/layout.html" %}
-{% block title %}Configurá tu perfil — JobAgent LATAM{% endblock %}
+﻿{% extends "app/layout.html" %}
+{% block title %}Configurá tu perfil — VacantIA{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl mx-auto" x-data="onboarding()">
@@ -183,7 +183,7 @@
 
 {% block scripts %}
 <script>
-const _LS_KEY = 'jobagent_onboarding_v1';
+const _LS_KEY = 'VacantIA_onboarding_v1';
 
 function onboarding() {
   const _saved = (() => { try { return JSON.parse(localStorage.getItem(_LS_KEY) || 'null'); } catch { return null; } })();
