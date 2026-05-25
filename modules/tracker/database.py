@@ -19,15 +19,16 @@ logger = get_logger(__name__)
 _TURSO_JOBS_URL = os.environ.get("TURSO_JOBS_DATABASE_URL") or os.environ.get("TURSO_DATABASE_URL")
 _TURSO_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
 
-if _TURSO_JOBS_URL:
+import sqlite3  # always needed for OperationalError
+try:
     import libsql_experimental as _libsql
-    import sqlite3  # still needed for OperationalError
-else:
-    import sqlite3
+except Exception:
     _libsql = None
+    _TURSO_JOBS_URL = None
 
 _data_dir = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent.parent / "data"))
 DB_PATH = _data_dir / "jobagent.db"
+_TURSO_DISABLED = False
 
 
 class _TursoCur:
@@ -98,18 +99,29 @@ class _TursoConn:
         self.close()
 
 
+def _connect_local():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.row_factory = lambda cur, row: {col[0]: row[idx] for idx, col in enumerate(cur.description)}
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
 def _connect():
-    if _TURSO_JOBS_URL:
-        conn = _libsql.connect(_TURSO_JOBS_URL, auth_token=_TURSO_TOKEN)
-        conn.execute("PRAGMA foreign_keys=ON")
-        return _TursoConn(conn)
-    else:
-        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(str(DB_PATH))
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.row_factory = lambda cur, row: {col[0]: row[idx] for idx, col in enumerate(cur.description)}
-        conn.execute("PRAGMA foreign_keys=ON")
-        return conn
+    global _TURSO_DISABLED
+    if _TURSO_JOBS_URL and _libsql and not _TURSO_DISABLED:
+        try:
+            conn = _libsql.connect(_TURSO_JOBS_URL, auth_token=_TURSO_TOKEN)
+            try:
+                conn.execute("PRAGMA foreign_keys=ON")
+            except Exception:
+                pass
+            return _TursoConn(conn)
+        except Exception as e:
+            logger.warning(f"Turso connect failed, fallback to local SQLite: {e}")
+            _TURSO_DISABLED = True
+    return _connect_local()
 
 
 def _migrate(conn: sqlite3.Connection):
