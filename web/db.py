@@ -28,7 +28,7 @@ def _connect():
         DB_PATH.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
         conn.execute("PRAGMA journal_mode=WAL")
-    conn.row_factory = sqlite3.Row
+    conn.row_factory = lambda cur, row: {col[0]: row[idx] for idx, col in enumerate(cur.description)}
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
@@ -94,6 +94,27 @@ def init_db():
                 preferred_portals       TEXT DEFAULT '["computrabajo"]',
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
+
+            CREATE TABLE IF NOT EXISTS payments (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id             INTEGER NOT NULL,
+                mp_payment_id       TEXT UNIQUE,
+                mp_preference_id    TEXT,
+                external_reference  TEXT,
+                amount              REAL,
+                currency            TEXT DEFAULT 'ARS',
+                status              TEXT,
+                status_detail       TEXT,
+                payer_email         TEXT,
+                raw_payload         TEXT,
+                created_at          TEXT NOT NULL,
+                updated_at          TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_payments_user   ON payments(user_id);
+            CREATE INDEX IF NOT EXISTS idx_payments_mp_id  ON payments(mp_payment_id);
+            CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
         """)
         conn.commit()
         _migrate(conn)
@@ -252,3 +273,77 @@ def mark_token_used(token: str):
     with _connect() as conn:
         conn.execute("UPDATE password_reset_tokens SET used = 1 WHERE token = ?", (token,))
         conn.commit()
+
+
+# ─── Pagos Mercado Pago ───────────────────────────────────────────────────────
+
+def save_payment_preference(user_id: int, preference_id: str, external_reference: str, amount: float) -> int:
+    """Registra una preferencia creada antes del checkout. Devuelve el id local."""
+    with _connect() as conn:
+        cur = conn.execute(
+            """INSERT INTO payments (user_id, mp_preference_id, external_reference, amount, status, created_at)
+               VALUES (?,?,?,?,?,?)""",
+            (user_id, preference_id, external_reference, amount, "pending", datetime.now().isoformat()),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def upsert_payment(mp_payment_id: str, user_id: int, payload: dict) -> tuple[bool, bool]:
+    """
+    Inserta o actualiza un pago. Devuelve (created, already_approved):
+      - created: True si es la primera vez que vemos este mp_payment_id
+      - already_approved: True si ya estaba marcado como approved (para evitar upgrade duplicado)
+    """
+    now = datetime.now().isoformat()
+    status = payload.get("status", "")
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT id, status FROM payments WHERE mp_payment_id = ?", (mp_payment_id,)
+        ).fetchone()
+        if row:
+            already_approved = row["status"] == "approved"
+            conn.execute(
+                """UPDATE payments SET status=?, status_detail=?, payer_email=?, raw_payload=?, updated_at=?
+                   WHERE id=?""",
+                (
+                    status,
+                    payload.get("status_detail"),
+                    (payload.get("payer") or {}).get("email"),
+                    json.dumps(payload, ensure_ascii=False)[:8000],
+                    now,
+                    row["id"],
+                ),
+            )
+            conn.commit()
+            return False, already_approved
+        conn.execute(
+            """INSERT INTO payments
+                 (user_id, mp_payment_id, mp_preference_id, external_reference, amount, currency,
+                  status, status_detail, payer_email, raw_payload, created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                user_id,
+                mp_payment_id,
+                payload.get("preference_id"),
+                payload.get("external_reference"),
+                payload.get("transaction_amount"),
+                payload.get("currency_id", "ARS"),
+                status,
+                payload.get("status_detail"),
+                (payload.get("payer") or {}).get("email"),
+                json.dumps(payload, ensure_ascii=False)[:8000],
+                now,
+                now,
+            ),
+        )
+        conn.commit()
+        return True, False
+
+
+def get_user_payments(user_id: int) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM payments WHERE user_id = ? ORDER BY created_at DESC", (user_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
