@@ -20,24 +20,96 @@ _TURSO_JOBS_URL = os.environ.get("TURSO_JOBS_DATABASE_URL") or os.environ.get("T
 _TURSO_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
 
 if _TURSO_JOBS_URL:
-    import libsql_experimental as sqlite3
+    import libsql_experimental as _libsql
+    import sqlite3  # still needed for OperationalError
 else:
     import sqlite3
+    _libsql = None
 
 _data_dir = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent.parent / "data"))
 DB_PATH = _data_dir / "jobagent.db"
 
 
+class _TursoCur:
+    """Cursor wrapper that returns dicts from libsql_experimental (no row_factory support)."""
+    def __init__(self, cur):
+        self._c = cur
+
+    @property
+    def lastrowid(self):
+        return getattr(self._c, "lastrowid", None)
+
+    @property
+    def description(self):
+        return getattr(self._c, "description", None)
+
+    def _row_to_dict(self, row):
+        desc = self.description
+        if row is None or not desc:
+            return row
+        return {col[0]: row[i] for i, col in enumerate(desc)}
+
+    def fetchone(self):
+        return self._row_to_dict(self._c.fetchone())
+
+    def fetchall(self):
+        rows = self._c.fetchall()
+        if not rows:
+            return []
+        return [self._row_to_dict(r) for r in rows]
+
+
+class _TursoConn:
+    """Connection wrapper for libsql_experimental."""
+    def __init__(self, conn):
+        self._c = conn
+
+    def execute(self, sql, params=()):
+        return _TursoCur(self._c.execute(sql, params))
+
+    def executescript(self, script):
+        for stmt in script.split(";"):
+            stmt = stmt.strip()
+            if stmt and not stmt.startswith("--"):
+                try:
+                    self._c.execute(stmt)
+                except Exception:
+                    pass
+        self._c.commit()
+
+    def commit(self):
+        self._c.commit()
+
+    def close(self):
+        try:
+            self._c.close()
+        except Exception:
+            pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            try:
+                self._c.commit()
+            except Exception:
+                pass
+        self.close()
+
+
 def _connect():
     if _TURSO_JOBS_URL:
-        conn = sqlite3.connect(_TURSO_JOBS_URL, auth_token=_TURSO_TOKEN)
+        conn = _libsql.connect(_TURSO_JOBS_URL, auth_token=_TURSO_TOKEN)
+        conn.execute("PRAGMA foreign_keys=ON")
+        return _TursoConn(conn)
     else:
         DB_PATH.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(DB_PATH))
         conn.execute("PRAGMA journal_mode=WAL")
-    conn.row_factory = lambda cur, row: {col[0]: row[idx] for idx, col in enumerate(cur.description)}
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+        conn.row_factory = lambda cur, row: {col[0]: row[idx] for idx, col in enumerate(cur.description)}
+        conn.execute("PRAGMA foreign_keys=ON")
+        return conn
 
 
 def _migrate(conn: sqlite3.Connection):
@@ -409,19 +481,19 @@ class ApplicationTracker:
         uid_params = [user_id] if user_id is not None else []
 
         with _connect() as conn:
-            total_jobs = conn.execute(
-                f"SELECT COUNT(DISTINCT a.job_id) FROM applications a WHERE 1=1 {uid_clause}",
+            total_jobs = (conn.execute(
+                f"SELECT COUNT(DISTINCT a.job_id) AS cnt FROM applications a WHERE 1=1 {uid_clause}",
                 uid_params,
-            ).fetchone()[0]
+            ).fetchone() or {}).get("cnt", 0)
 
-            total_apps = conn.execute(
-                f"SELECT COUNT(*) FROM applications WHERE 1=1 {uid_clause}", uid_params
-            ).fetchone()[0]
+            total_apps = (conn.execute(
+                f"SELECT COUNT(*) AS cnt FROM applications WHERE 1=1 {uid_clause}", uid_params
+            ).fetchone() or {}).get("cnt", 0)
 
-            avg_score = conn.execute(
-                f"SELECT AVG(relevance_score) FROM applications WHERE relevance_score IS NOT NULL {uid_clause}",
+            avg_score = (conn.execute(
+                f"SELECT AVG(relevance_score) AS avg FROM applications WHERE relevance_score IS NOT NULL {uid_clause}",
                 uid_params,
-            ).fetchone()[0] or 0.0
+            ).fetchone() or {}).get("avg") or 0.0
 
             by_status_rows = conn.execute(
                 f"SELECT status, COUNT(*) as cnt FROM applications WHERE 1=1 {uid_clause} GROUP BY status",

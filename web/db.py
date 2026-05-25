@@ -13,24 +13,96 @@ _TURSO_URL = os.environ.get("TURSO_DATABASE_URL")
 _TURSO_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
 
 if _TURSO_URL:
-    import libsql_experimental as sqlite3
+    import libsql_experimental as _libsql
+    import sqlite3  # still needed for IntegrityError, OperationalError
 else:
     import sqlite3
+    _libsql = None
 
 _data_dir = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent / "data"))
 DB_PATH = _data_dir / "users.db"
 
 
+class _TursoCur:
+    """Cursor wrapper that returns dicts (libsql_experimental has no row_factory)."""
+    def __init__(self, cur):
+        self._c = cur
+
+    @property
+    def lastrowid(self):
+        return getattr(self._c, "lastrowid", None)
+
+    @property
+    def description(self):
+        return getattr(self._c, "description", None)
+
+    def _row_to_dict(self, row):
+        desc = self.description
+        if row is None or not desc:
+            return row
+        return {col[0]: row[i] for i, col in enumerate(desc)}
+
+    def fetchone(self):
+        return self._row_to_dict(self._c.fetchone())
+
+    def fetchall(self):
+        rows = self._c.fetchall()
+        if not rows:
+            return []
+        return [self._row_to_dict(r) for r in rows]
+
+
+class _TursoConn:
+    """Connection wrapper for libsql_experimental."""
+    def __init__(self, conn):
+        self._c = conn
+
+    def execute(self, sql, params=()):
+        return _TursoCur(self._c.execute(sql, params))
+
+    def executescript(self, script):
+        for stmt in script.split(";"):
+            stmt = stmt.strip()
+            if stmt and not stmt.startswith("--"):
+                try:
+                    self._c.execute(stmt)
+                except Exception:
+                    pass
+        self._c.commit()
+
+    def commit(self):
+        self._c.commit()
+
+    def close(self):
+        try:
+            self._c.close()
+        except Exception:
+            pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            try:
+                self._c.commit()
+            except Exception:
+                pass
+        self.close()
+
+
 def _connect():
     if _TURSO_URL:
-        conn = sqlite3.connect(_TURSO_URL, auth_token=_TURSO_TOKEN)
+        conn = _libsql.connect(_TURSO_URL, auth_token=_TURSO_TOKEN)
+        conn.execute("PRAGMA foreign_keys=ON")
+        return _TursoConn(conn)
     else:
         DB_PATH.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
         conn.execute("PRAGMA journal_mode=WAL")
-    conn.row_factory = lambda cur, row: {col[0]: row[idx] for idx, col in enumerate(cur.description)}
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+        conn.row_factory = lambda cur, row: {col[0]: row[idx] for idx, col in enumerate(cur.description)}
+        conn.execute("PRAGMA foreign_keys=ON")
+        return conn
 
 
 def _migrate(conn: sqlite3.Connection):
