@@ -109,3 +109,58 @@ class TestDeduplicacionLogica:
         assert key_bumeran in seen_keys, (
             "El mismo puesto publicado en otro portal debe ser detectado como duplicado"
         )
+
+
+class TestTitleKeyAcentos:
+    """
+    En un portal en español los acentos son omnipresentes. _title_key debe
+    NORMALIZARLOS (á→a, ñ→n), no borrarlos, para que la misma vacante escrita
+    con o sin acento se detecte como duplicada.
+    """
+
+    @pytest.mark.parametrize("con_acento,sin_acento", [
+        ("Diseñador Gráfico",      "Disenador Grafico"),
+        ("Analista de Logística",  "Analista de Logistica"),
+        ("Médico Clínico",         "Medico Clinico"),
+        ("Niñera",                 "Ninera"),
+    ])
+    def test_acentos_y_enie_colapsan_a_la_misma_key(self, con_acento, sin_acento):
+        assert JobAgent._title_key(con_acento, "Acme") == JobAgent._title_key(sin_acento, "Acme")
+
+    def test_acentos_no_se_pierden_dejando_keys_vacias(self):
+        """'Niñera' no debe quedar mutilada a 'niera' por borrado del ñ."""
+        key = JobAgent._title_key("Niñera", "Acme")
+        assert "ninera" in key
+
+
+class TestTitleKeyStopwordsPalabraCompleta:
+    """
+    Las stopwords (ref, sr, jr, semi, senior, junior...) deben eliminarse solo
+    como PALABRAS COMPLETAS. Borrarlas como subcadena mutila palabras legítimas
+    y puede fusionar puestos distintos como si fueran duplicados.
+    """
+
+    @pytest.mark.parametrize("title,palabra_intacta", [
+        ("Referente de Ventas",       "referente"),   # contiene 'ref'
+        ("Coordinador de Seminario",  "seminario"),    # contiene 'semi'
+        ("Asesor Comercial",          "asesor"),        # contiene 'sr'
+        ("Gerente Senior",            "gerente"),       # 'senior' SÍ se va, 'gerente' queda
+    ])
+    def test_stopword_como_subcadena_no_mutila_la_palabra(self, title, palabra_intacta):
+        key = JobAgent._title_key(title, "Acme")
+        assert palabra_intacta in key, (
+            f"'{palabra_intacta}' fue mutilada por borrado de stopword en subcadena: '{key}'"
+        )
+
+    def test_stopword_palabra_completa_si_se_elimina(self):
+        """'Senior' como palabra suelta sí debe desaparecer."""
+        con = JobAgent._title_key("Desarrollador Senior", "Acme")
+        sin = JobAgent._title_key("Desarrollador", "Acme")
+        assert con == sin
+
+    def test_referente_y_referente_senior_son_duplicados(self):
+        """Mismo puesto con/sin seniority → misma key (caso de uso real)."""
+        a = JobAgent._title_key("Referente de Soporte", "Acme")
+        b = JobAgent._title_key("Referente de Soporte Senior", "Acme")
+        assert a == b
+        assert "referente" in a  # y no quedó mutilado

@@ -30,9 +30,9 @@ class JobAgent:
     Buscar → Evaluar → Generar carta → (Aprobar) → Aplicar → Trackear → Notificar
     """
 
-    def __init__(self):
-        self.scorer = JobScorer()
-        self.cover_letter_gen = CoverLetterGenerator()
+    def __init__(self, groq_api_key: str | None = None):
+        self.scorer = JobScorer(api_key=groq_api_key)
+        self.cover_letter_gen = CoverLetterGenerator(api_key=groq_api_key)
         self.tracker = ApplicationTracker()
         self.notifier = TelegramNotifier()
         self._progress: Optional[Callable[[str], None]] = None
@@ -121,9 +121,15 @@ class JobAgent:
     @staticmethod
     def _title_key(title: str, company: str) -> str:
         import re
-        t = re.sub(r"[^a-z0-9 ]", "", (title + " " + company).lower())
-        for stop in ("ref", "remoto", "argentina", "ssr", "sr", "jr", "semi", "senior", "junior"):
-            t = t.replace(stop, "")
+        import unicodedata
+        # Normaliza acentos (á→a, ñ→n) en vez de borrarlos: así "Diseñador" y
+        # "Disenador" colapsan a la misma key.
+        raw = unicodedata.normalize("NFKD", (title + " " + company).lower())
+        raw = "".join(c for c in raw if not unicodedata.combining(c))
+        t = re.sub(r"[^a-z0-9 ]", " ", raw)
+        # Stopwords solo como palabras completas (\b) para no mutilar palabras
+        # que las contengan como subcadena, ej. "referente", "seminario".
+        t = re.sub(r"\b(ref|remoto|argentina|ssr|sr|jr|semi|senior|junior)\b", " ", t)
         return re.sub(r"\s+", " ", t).strip()
 
     @staticmethod

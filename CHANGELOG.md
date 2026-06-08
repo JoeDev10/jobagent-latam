@@ -5,11 +5,32 @@ Este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Added
+- Snapshot tests de scrapers con HTML fijado para Computrabajo y Bumeran
+  (`tests/test_scrapers_snapshot.py`): detectan cambios de selectores/estructura
+  que dejarían el parser devolviendo 0 resultados, e incluyen el caso
+  "selectores rotos → lista vacía sin crashear".
+- Tests de deduplicación ampliados (`tests/test_deduplication.py`): cobertura de
+  normalización de acentos/ñ y de stopwords eliminadas solo como palabra completa.
+
+### Fixed
+- `_title_key` (`core/agent.py`): normaliza acentos (á→a, ñ→n) en vez de borrarlos
+  y elimina stopwords como palabra completa (`\b`). Antes "Diseñador"/"Disenador"
+  no se detectaban como duplicado y palabras como "Referente"/"Seminario" quedaban
+  mutiladas por borrado de subcadena, pudiendo fusionar puestos distintos.
+- `ApplicationTracker.get_stats` (`modules/tracker/database.py`): en modo personal
+  (sin `user_id`) `total_jobs_scraped` y `avg_relevance_score` se calculan sobre la
+  tabla `jobs` (no sobre `applications`), corrigiendo 5 tests que fallaban. El modo
+  multi-tenant (con `user_id`) mantiene el cálculo por aplicaciones del usuario.
+
+### Verificado
+- Render de templates del SaaS: las 17 rutas públicas, de auth, de `/app/*` y de
+  admin responden 200 y el flujo de registro (POST `/register` → `/app/onboarding`
+  con cookie de sesión) funciona end-to-end (vía `TestClient`).
+
 ### Planeado
-- Snapshot tests de scrapers con HTML fijado
-- Tests unitarios de deduplicación (`_title_key`)
-- CI con GitHub Actions
-- Migración a SaaS multi-tenant (FastAPI + Next.js)
+- Migración del front del SaaS a Next.js (hoy server-side con Jinja2)
+- Verificación de Turso en producción (deploy en Render) — ver README/`render.yaml`
 
 ## [0.1.0] — 2026-05-20
 

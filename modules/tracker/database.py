@@ -488,24 +488,40 @@ class ApplicationTracker:
     # ─── Estadísticas ─────────────────────────────────────────────────────────
 
     def get_stats(self, user_id: Optional[int] = None) -> dict:
-        """Devuelve estadísticas. Si se pasa user_id, filtra por ese usuario."""
+        """Devuelve estadísticas. Si se pasa user_id, filtra por ese usuario.
+
+        En modo personal (sin user_id) las vacantes son del único usuario, así que
+        total_jobs_scraped y avg_relevance_score se calculan sobre la tabla `jobs`
+        (todas las vacantes scrapeadas). En modo multi-tenant (con user_id) las
+        vacantes son un pool compartido sin user_id, por lo que esas métricas se
+        derivan de las aplicaciones del usuario.
+        """
         uid_clause = "AND user_id = ?" if user_id is not None else ""
         uid_params = [user_id] if user_id is not None else []
 
         with _connect() as conn:
-            total_jobs = (conn.execute(
-                f"SELECT COUNT(DISTINCT a.job_id) AS cnt FROM applications a WHERE 1=1 {uid_clause}",
-                uid_params,
-            ).fetchone() or {}).get("cnt", 0)
+            if user_id is None:
+                total_jobs = (conn.execute(
+                    "SELECT COUNT(*) AS cnt FROM jobs"
+                ).fetchone() or {}).get("cnt", 0)
+
+                avg_score = (conn.execute(
+                    "SELECT AVG(relevance_score) AS avg FROM jobs WHERE relevance_score IS NOT NULL"
+                ).fetchone() or {}).get("avg") or 0.0
+            else:
+                total_jobs = (conn.execute(
+                    f"SELECT COUNT(DISTINCT job_id) AS cnt FROM applications WHERE 1=1 {uid_clause}",
+                    uid_params,
+                ).fetchone() or {}).get("cnt", 0)
+
+                avg_score = (conn.execute(
+                    f"SELECT AVG(relevance_score) AS avg FROM applications WHERE relevance_score IS NOT NULL {uid_clause}",
+                    uid_params,
+                ).fetchone() or {}).get("avg") or 0.0
 
             total_apps = (conn.execute(
                 f"SELECT COUNT(*) AS cnt FROM applications WHERE 1=1 {uid_clause}", uid_params
             ).fetchone() or {}).get("cnt", 0)
-
-            avg_score = (conn.execute(
-                f"SELECT AVG(relevance_score) AS avg FROM applications WHERE relevance_score IS NOT NULL {uid_clause}",
-                uid_params,
-            ).fetchone() or {}).get("avg") or 0.0
 
             by_status_rows = conn.execute(
                 f"SELECT status, COUNT(*) as cnt FROM applications WHERE 1=1 {uid_clause} GROUP BY status",
