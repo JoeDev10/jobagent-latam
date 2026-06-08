@@ -18,6 +18,8 @@ import pytest
 
 from modules.scrapers.computrabajo import ComputrabajoScraper, BASE_URL as CT_BASE
 from modules.scrapers.bumeran import BumeranScraper, BASE_URL as BM_BASE
+from modules.scrapers.zonajobs import ZonaJobsScraper, BASE_URL as ZJ_BASE
+from modules.scrapers.indeed import IndeedScraper, BASE_URL as ID_BASE
 
 
 # ─── Computrabajo ──────────────────────────────────────────────────────────────
@@ -157,3 +159,128 @@ class TestBumeranListings:
     def test_selectores_rotos_devuelven_lista_vacia_sin_crashear(self):
         html_sin_estructura = "<html><body><a href='/algo/sin-id.html'>x</a></body></html>"
         assert BumeranScraper()._parse_listings(html_sin_estructura) == []
+
+
+# ─── ZonaJobs ────────────────────────────────────────────────────────────────
+
+# ZonaJobs usa /empleos/<slug>-<id> (sin .html, id de 4+ dígitos).
+ZONAJOBS_HTML = """
+<html><body>
+  <ul>
+    <li><a href="/empleos/desarrollador-python-12345?utm=feed">Desarrollador Python</a></li>
+    <li><a href="https://www.zonajobs.com.ar/empleos/qa-tester-67890">QA Tester</a></li>
+    <li><a href="/empleos/analista-de-sistemas-9999">Analista de Sistemas</a></li>
+    <!-- Duplicado -->
+    <li><a href="/empleos/desarrollador-python-12345">Dev dup</a></li>
+    <!-- No es vacante -->
+    <li><a href="/empresas/acme">Acme</a></li>
+    <!-- ID muy corto (menos de 4 digitos) -->
+    <li><a href="/empleos/cadete-12">Cadete</a></li>
+    <!-- Titulo corto: cae al aria-label -->
+    <li><a href="/empleos/dev-55555" aria-label="Backend Developer">Dev</a></li>
+  </ul>
+</body></html>
+"""
+
+ZONAJOBS_JOB_RE = re.compile(r"/empleos/[^/]+-\d{4,}$")
+
+
+class TestZonaJobsListings:
+
+    @pytest.fixture
+    def listings(self):
+        return ZonaJobsScraper()._parse_listings(ZONAJOBS_HTML)
+
+    def test_extrae_las_vacantes_validas(self, listings):
+        """4 únicas: duplicado, empresa e ID corto se filtran."""
+        assert len(listings) == 4
+
+    def test_solo_urls_de_vacante(self, listings):
+        for l in listings:
+            assert ZONAJOBS_JOB_RE.search(l["url"]), f"URL no es de vacante: {l['url']}"
+
+    def test_no_hay_urls_duplicadas(self, listings):
+        urls = [l["url"] for l in listings]
+        assert len(urls) == len(set(urls))
+
+    def test_descarta_links_que_no_son_vacantes(self, listings):
+        urls = " ".join(l["url"] for l in listings)
+        assert "/empresas/" not in urls
+        assert "cadete-12" not in urls
+
+    def test_url_relativa_se_vuelve_absoluta(self, listings):
+        urls = [l["url"] for l in listings]
+        assert f"{ZJ_BASE}/empleos/desarrollador-python-12345" in urls
+
+    def test_query_string_se_elimina(self, listings):
+        assert all("?" not in l["url"] for l in listings)
+
+    def test_titulo_corto_cae_al_aria_label(self, listings):
+        dev = next(l for l in listings if "dev-55555" in l["url"])
+        assert dev["title"] == "Backend Developer"
+
+    def test_selectores_rotos_devuelven_lista_vacia_sin_crashear(self):
+        assert ZonaJobsScraper()._parse_listings("<html><body><a href='/x'>y</a></body></html>") == []
+
+
+# ─── Indeed (solo lectura) ───────────────────────────────────────────────────
+
+# Indeed usa cascada de selectores; las cards llevan el link en h2/a[data-jk].
+# OJO: el parser elimina el query string (?jk=...), así que las URLs deben
+# distinguirse por el PATH, no por el query.
+INDEED_HTML = """
+<html><body>
+  <div class="job_seen_beacon">
+    <h2><a data-jk="abc" href="/jobs/view/data-engineer-abc?from=list">Data Engineer</a></h2>
+  </div>
+  <li class="css-5lfssm">
+    <h2><a href="/jobs/view/backend-dev-def">Backend Developer</a></h2>
+  </li>
+  <div data-testid="slider_item">
+    <h2><a href="https://ar.indeed.com/jobs/view/qa-analyst-ghi">QA Analyst</a></h2>
+  </div>
+  <!-- Duplicado del backend (mismo path tras quitar query) -->
+  <div class="job_seen_beacon">
+    <h2><a href="/jobs/view/backend-dev-def?ref=2">Backend dup</a></h2>
+  </div>
+</body></html>
+"""
+
+
+class TestIndeedListings:
+
+    @pytest.fixture
+    def listings(self):
+        return IndeedScraper()._parse_listings(INDEED_HTML)
+
+    def test_extrae_las_vacantes_validas(self, listings):
+        """3 únicas (el duplicado por path se filtra)."""
+        assert len(listings) == 3
+
+    def test_titulos_correctos(self, listings):
+        titulos = {l["title"] for l in listings}
+        assert {"Data Engineer", "Backend Developer", "QA Analyst"} <= titulos
+
+    def test_no_hay_urls_duplicadas(self, listings):
+        urls = [l["url"] for l in listings]
+        assert len(urls) == len(set(urls))
+
+    def test_query_string_se_elimina(self, listings):
+        assert all("?" not in l["url"] for l in listings)
+
+    def test_url_relativa_se_vuelve_absoluta(self, listings):
+        assert all(l["url"].startswith("http") for l in listings)
+
+    def test_fallback_a_links_de_clic(self):
+        """Sin cards reconocibles, usa el fallback de links /viewjob, /rc/clk, etc."""
+        html = (
+            '<html><body>'
+            '<a href="/viewjob/soporte-tecnico-remoto-buenos-aires">Soporte Tecnico Remoto</a>'
+            '</body></html>'
+        )
+        listings = IndeedScraper()._parse_listings(html)
+        assert len(listings) == 1
+        assert listings[0]["title"] == "Soporte Tecnico Remoto"
+
+    def test_selectores_rotos_devuelven_lista_vacia_sin_crashear(self):
+        assert IndeedScraper()._parse_listings("<html><body><p>nada</p></body></html>") == []
