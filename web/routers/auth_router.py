@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from web.auth import create_token, verify_password, hash_password, get_current_user
 from web.templates_env import templates
-from web import db
+from web import db, tracking
 
 router = APIRouter()
 
@@ -82,6 +82,7 @@ async def login_submit(request: Request, email: str = Form(...), password: str =
 async def register_page(request: Request):
     if get_current_user(request):
         return RedirectResponse("/app/dashboard", status_code=302)
+    tracking.log_event(request, "signup_started")
     return templates.TemplateResponse(request, "auth/register.html", {"error": None})
 
 
@@ -113,6 +114,8 @@ async def register_submit(
             {"error": "Ese email ya está registrado"},
             status_code=400,
         )
+    tracking.attach_utm_to_user(request, uid)
+    tracking.log_event(request, "signup_completed", user_id=uid, metadata={"email": email})
     background_tasks.add_task(_notify_telegram_new_user, full_name, email)
     token = create_token(uid, email)
     response = RedirectResponse("/app/onboarding", status_code=302)
@@ -141,7 +144,7 @@ async def forgot_password_submit(request: Request, email: str = Form(...)):
         token = secrets.token_urlsafe(32)
         expires_at = (datetime.now() + timedelta(hours=2)).isoformat()
         db.create_reset_token(user["id"], token, expires_at)
-        app_url = os.environ.get("APP_URL", "http://localhost:8000")
+        app_url = os.environ.get("BASE_URL", "http://localhost:8000")
         reset_link = f"{app_url}/reset-password?token={token}"
         # Send via Resend if configured (production), Telegram as fallback (dev)
         await _send_reset_email(user["email"], reset_link)

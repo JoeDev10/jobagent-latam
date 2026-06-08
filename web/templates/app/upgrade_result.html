@@ -1,0 +1,80 @@
+{% extends "app/layout.html" %}
+{% block title %}
+  {% if result == 'success' %}¡Pago recibido!{% elif result == 'pending' %}Pago pendiente{% else %}Pago no procesado{% endif %} — VacantIA
+{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+
+  {% if result == 'success' %}
+  <div class="bg-white rounded-2xl border border-emerald-100 shadow-sm p-8 text-center">
+    <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
+      <svg class="w-10 h-10 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+      </svg>
+    </div>
+    <h1 class="text-2xl font-black text-slate-900 mb-2">¡Pago recibido!</h1>
+    <p class="text-slate-500 mb-2">Tu pago se procesó correctamente.</p>
+    {% if user.plan == 'pro' %}
+      <p class="text-emerald-600 font-semibold mb-6">Ya tenés Pro activo. Disfrutá de búsquedas ilimitadas.</p>
+    {% else %}
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-left">
+        <p class="text-amber-900 text-sm font-semibold">Estamos confirmando tu pago.</p>
+        <p class="text-amber-700 text-xs mt-1">En segundos tu cuenta queda en Pro automáticamente. Si en 5 minutos no se activa, escribinos.</p>
+      </div>
+    {% endif %}
+    <div class="flex gap-3 justify-center">
+      <a href="/app/search" class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-6 py-3 rounded-xl font-bold text-sm transition-colors shadow-lg shadow-violet-200">
+        Buscar vacantes
+      </a>
+      <a href="/app/dashboard" class="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3 rounded-xl font-bold text-sm transition-colors">
+        Volver al dashboard
+      </a>
+    </div>
+    {% if payment_id %}
+    <p class="text-xs text-slate-400 mt-6">Comprobante: <code class="bg-slate-100 px-2 py-0.5 rounded">{{ payment_id }}</code></p>
+    {% endif %}
+  </div>
+
+  {% elif result == 'pending' %}
+  <div class="bg-white rounded-2xl border border-amber-100 shadow-sm p-8 text-center">
+    <div class="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-5">
+      <svg class="w-10 h-10 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </div>
+    <h1 class="text-2xl font-black text-slate-900 mb-2">Pago pendiente</h1>
+    <p class="text-slate-500 mb-6">
+      Mercado Pago está procesando tu pago. Esto puede tardar unos minutos (transferencias) o varios días (pago en efectivo).
+      Te activamos Pro apenas se acredite.
+    </p>
+    <a href="/app/dashboard" class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-6 py-3 rounded-xl font-bold text-sm transition-colors">
+      Volver al dashboard
+    </a>
+    {% if payment_id %}
+    <p class="text-xs text-slate-400 mt-6">Comprobante: <code class="bg-slate-100 px-2 py-0.5 rounded">{{ payment_id }}</code></p>
+    {% endif %}
+  </div>
+
+  {% else %}
+  <div class="bg-white rounded-2xl border border-red-100 shadow-sm p-8 text-center">
+    <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+      <svg class="w-10 h-10 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </div>
+    <h1 class="text-2xl font-black text-slate-900 mb-2">No se pudo procesar el pago</h1>
+    <p class="text-slate-500 mb-6">El pago no se completó. Podés intentar de nuevo o usar otro medio de pago.</p>
+    <div class="flex gap-3 justify-center">
+      <a href="/app/upgrade" class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-6 py-3 rounded-xl font-bold text-sm transition-colors shadow-lg shadow-violet-200">
+        Reintentar pago
+      </a>
+      <a href="/app/dashboard" class="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3 rounded-xl font-bold text-sm transition-colors">
+        Volver al dashboard
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Métricas — VacantIA Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>body{font-family:'Inter',sans-serif;}</style>
+</head>
+<body class="min-h-screen bg-slate-900 text-white">
+
+<div class="max-w-6xl mx-auto px-6 py-8">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-900/50">
+        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-xl font-black">Métricas</h1>
+        <p class="text-slate-400 text-xs">Últimos {{ days }} días</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex bg-slate-800 rounded-lg overflow-hidden text-xs border border-slate-700">
+        {% for d in [1, 7, 14, 30, 90] %}
+        <a href="?days={{ d }}"
+           class="px-3 py-2 transition-colors {% if days == d %}bg-violet-600 text-white font-bold{% else %}text-slate-400 hover:text-white{% endif %}">
+          {{ d }}d
+        </a>
+        {% endfor %}
+      </div>
+      <a href="/admin/panel" class="text-slate-400 hover:text-white text-sm transition-colors">← Panel</a>
+    </div>
+  </div>
+
+  <!-- Funnel de conversión -->
+  <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-6">
+    <h2 class="font-bold text-white text-lg mb-4">Funnel de conversión <span class="text-slate-500 text-sm font-normal">(todos los tiempos)</span></h2>
+    <div class="space-y-3">
+      {% for step in funnel %}
+      <div>
+        <div class="flex justify-between items-baseline mb-1">
+          <span class="text-sm text-slate-300">{{ step.step }}</span>
+          <span class="text-sm">
+            <span class="text-white font-bold">{{ step.count }}</span>
+            <span class="text-slate-500 text-xs ml-2">{{ step.pct }}%</span>
+          </span>
+        </div>
+        <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+          <div class="h-full bg-gradient-to-r from-violet-500 to-indigo-500" style="width: {{ step.pct }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Grid 2 columnas -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+    <!-- Eventos en el periodo -->
+    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+      <h2 class="font-bold text-white text-lg mb-4">Eventos últimos {{ days }}d</h2>
+      {% if events %}
+      <div class="space-y-2">
+        {% for ev, count in events.items() %}
+        <div class="flex justify-between items-center text-sm">
+          <code class="text-violet-300 bg-violet-900/20 px-2 py-0.5 rounded text-xs">{{ ev }}</code>
+          <span class="text-white font-bold">{{ count }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-slate-500 text-sm italic">Sin eventos en este periodo.</p>
+      {% endif %}
+    </div>
+
+    <!-- Registros por día -->
+    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+      <h2 class="font-bold text-white text-lg mb-4">Registros por día</h2>
+      {% if daily %}
+      <div class="space-y-1.5">
+        {% set max_users = daily | map(attribute='users') | max %}
+        {% for d in daily %}
+        <div class="flex items-center gap-3 text-xs">
+          <span class="text-slate-400 w-20">{{ d.day }}</span>
+          <div class="flex-1 h-5 bg-slate-700 rounded overflow-hidden">
+            <div class="h-full bg-violet-500" style="width: {{ (d.users / max_users * 100) | int if max_users else 0 }}%"></div>
+          </div>
+          <span class="text-white font-bold w-8 text-right">{{ d.users }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-slate-500 text-sm italic">Sin registros en este periodo.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Breakdown por UTM -->
+  <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-6">
+    <h2 class="font-bold text-white text-lg mb-4">Origen de registros (UTM) últimos {{ days }}d</h2>
+    {% if by_utm %}
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wide">
+          <th class="text-left pb-2 font-semibold">Source</th>
+          <th class="text-left pb-2 font-semibold">Medium</th>
+          <th class="text-left pb-2 font-semibold">Campaign</th>
+          <th class="text-right pb-2 font-semibold">Usuarios</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in by_utm %}
+        <tr class="border-b border-slate-700/50">
+          <td class="py-2 text-white font-semibold">{{ row.source }}</td>
+          <td class="py-2 text-slate-400">{{ row.medium }}</td>
+          <td class="py-2 text-slate-400 text-xs">{{ row.campaign }}</td>
+          <td class="py-2 text-right">
+            <span class="bg-violet-600/20 text-violet-300 px-2.5 py-1 rounded-full font-bold">{{ row.users }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-slate-500 text-sm italic">Sin registros con UTM tracking en este periodo.</p>
+    {% endif %}
+  </div>
+
+  <!-- Tip -->
+  <div class="bg-amber-900/20 border border-amber-700/30 rounded-2xl p-5 text-sm text-amber-200">
+    <p class="font-semibold mb-1">💡 Cómo usar esto</p>
+    <p class="text-amber-100/80">
+      Cada post de marketing tiene su link con <code class="bg-amber-900/30 px-1 rounded">?utm_source=...</code> precargado en
+      <code class="bg-amber-900/30 px-1 rounded">jobagent/marketing/05_utm_links.md</code>.
+      Mirá esta página al día siguiente de cada post para ver de dónde vinieron los usuarios.
+    </p>
+  </div>
+
+</div>
+
+</body>
+</html>

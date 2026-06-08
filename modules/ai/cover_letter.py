@@ -15,8 +15,8 @@ _MAX_CONCURRENT = 2  # cartas en paralelo; las cover letters consumen ~1k tokens
 
 
 class CoverLetterGenerator:
-    def __init__(self):
-        self.client = AsyncGroq(api_key=settings.groq_api_key)
+    def __init__(self, api_key: str | None = None):
+        self.client = AsyncGroq(api_key=api_key or settings.groq_api_key)
         self.profile_manager = ProfileManager()
         self._cv_cache: dict[str, str] = {}
         self._semaphore = asyncio.Semaphore(_MAX_CONCURRENT)

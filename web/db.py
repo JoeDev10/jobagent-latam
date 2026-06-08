@@ -121,6 +121,10 @@ def _migrate(conn: sqlite3.Connection):
     migrations = [
         ("users",          "runs_used",           "INTEGER DEFAULT 0"),
         ("users",          "upgraded_at",         "TEXT"),
+        ("users",          "utm_source",          "TEXT"),
+        ("users",          "utm_medium",          "TEXT"),
+        ("users",          "utm_campaign",        "TEXT"),
+        ("users",          "referrer",            "TEXT"),
         ("user_settings",  "zonajobs_email",      "TEXT DEFAULT ''"),
         ("user_settings",  "zonajobs_password",   "TEXT DEFAULT ''"),
     ]
@@ -199,6 +203,23 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_payments_user   ON payments(user_id);
             CREATE INDEX IF NOT EXISTS idx_payments_mp_id  ON payments(mp_payment_id);
             CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+
+            CREATE TABLE IF NOT EXISTS events (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id       INTEGER,
+                event_type    TEXT NOT NULL,
+                utm_source    TEXT,
+                utm_medium    TEXT,
+                utm_campaign  TEXT,
+                referrer      TEXT,
+                metadata      TEXT,
+                created_at    TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_events_user      ON events(user_id);
+            CREATE INDEX IF NOT EXISTS idx_events_type      ON events(event_type);
+            CREATE INDEX IF NOT EXISTS idx_events_created   ON events(created_at);
+            CREATE INDEX IF NOT EXISTS idx_events_utm       ON events(utm_source);
         """)
         conn.commit()
         _migrate(conn)
@@ -431,3 +452,121 @@ def get_user_payments(user_id: int) -> list[dict]:
             "SELECT * FROM payments WHERE user_id = ? ORDER BY created_at DESC", (user_id,)
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+# ─── Tracking / Analytics ─────────────────────────────────────────────────────
+
+def log_event(
+    event_type: str,
+    user_id: Optional[int] = None,
+    utm_source: Optional[str] = None,
+    utm_medium: Optional[str] = None,
+    utm_campaign: Optional[str] = None,
+    referrer: Optional[str] = None,
+    metadata: Optional[dict] = None,
+):
+    """Loguea un evento. No falla si la DB está caída — el tracking nunca debe romper UX."""
+    try:
+        with _connect() as conn:
+            conn.execute(
+                """INSERT INTO events (user_id, event_type, utm_source, utm_medium, utm_campaign, referrer, metadata, created_at)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (
+                    user_id,
+                    event_type,
+                    utm_source,
+                    utm_medium,
+                    utm_campaign,
+                    referrer,
+                    json.dumps(metadata, ensure_ascii=False) if metadata else None,
+                    datetime.now().isoformat(),
+                ),
+            )
+            conn.commit()
+    except Exception:
+        pass  # tracking is best-effort
+
+
+def set_user_utm(user_id: int, utm_source: str, utm_medium: str, utm_campaign: str, referrer: str):
+    """Asocia UTMs al usuario al registrarse (solo si los campos están vacíos)."""
+    with _connect() as conn:
+        conn.execute(
+            """UPDATE users
+               SET utm_source = COALESCE(NULLIF(utm_source, ''), ?),
+                   utm_medium = COALESCE(NULLIF(utm_medium, ''), ?),
+                   utm_campaign = COALESCE(NULLIF(utm_campaign, ''), ?),
+                   referrer = COALESCE(NULLIF(referrer, ''), ?)
+               WHERE id = ?""",
+            (utm_source or None, utm_medium or None, utm_campaign or None, referrer or None, user_id),
+        )
+        conn.commit()
+
+
+def metrics_funnel(days: int = 7) -> dict:
+    """Conteo de eventos clave en los últimos N días."""
+    with _connect() as conn:
+        rows = conn.execute(
+            """SELECT event_type, COUNT(*) AS c
+               FROM events
+               WHERE created_at >= datetime('now', ?)
+               GROUP BY event_type""",
+            (f"-{days} days",),
+        ).fetchall()
+        return {r["event_type"]: r["c"] for r in rows}
+
+
+def metrics_by_utm(days: int = 7) -> list[dict]:
+    """Breakdown de registros por utm_source en los últimos N días."""
+    with _connect() as conn:
+        rows = conn.execute(
+            """SELECT COALESCE(utm_source, 'direct') AS source,
+                      COALESCE(utm_medium, '-')     AS medium,
+                      COALESCE(utm_campaign, '-')   AS campaign,
+                      COUNT(*) AS users
+               FROM users
+               WHERE created_at >= datetime('now', ?)
+               GROUP BY source, medium, campaign
+               ORDER BY users DESC""",
+            (f"-{days} days",),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def metrics_daily_signups(days: int = 14) -> list[dict]:
+    """Registros por día — para gráfico de cohort."""
+    with _connect() as conn:
+        rows = conn.execute(
+            """SELECT DATE(created_at) AS day, COUNT(*) AS users
+               FROM users
+               WHERE created_at >= datetime('now', ?)
+               GROUP BY day
+               ORDER BY day""",
+            (f"-{days} days",),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def metrics_conversion_funnel() -> list[dict]:
+    """
+    Funnel: % de usuarios que pasaron por cada paso.
+    Cuenta usuarios únicos (no eventos) en cada step.
+    """
+    steps = [
+        ("Registros", "SELECT COUNT(*) FROM users"),
+        ("Onboarding completado", "SELECT COUNT(DISTINCT user_id) FROM events WHERE event_type='onboarding_completed'"),
+        ("Primera búsqueda", "SELECT COUNT(DISTINCT user_id) FROM events WHERE event_type='first_search'"),
+        ("Vio /upgrade", "SELECT COUNT(DISTINCT user_id) FROM events WHERE event_type='upgrade_viewed'"),
+        ("Inició pago", "SELECT COUNT(DISTINCT user_id) FROM events WHERE event_type='payment_started'"),
+        ("Es Pro", "SELECT COUNT(*) FROM users WHERE plan='pro'"),
+    ]
+    result = []
+    with _connect() as conn:
+        first = None
+        for label, sql in steps:
+            row = conn.execute(sql).fetchone()
+            count = row[0] if row else 0
+            if first is None:
+                first = count
+            pct = (count / first * 100) if first else 0
+            result.append({"step": label, "count": count, "pct": round(pct, 1)})
+    return result

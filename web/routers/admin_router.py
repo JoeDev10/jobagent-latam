@@ -71,6 +71,32 @@ async def admin_panel(request: Request):
     })
 
 
+@router.get("/metrics", response_class=HTMLResponse)
+async def admin_metrics(request: Request):
+    if not _is_admin(request):
+        return RedirectResponse("/admin/login", status_code=302)
+
+    # Periodo configurable via query param ?days=7
+    try:
+        days = int(request.query_params.get("days", "7"))
+    except ValueError:
+        days = 7
+    days = max(1, min(days, 90))
+
+    funnel = db.metrics_conversion_funnel()
+    by_utm = db.metrics_by_utm(days=days)
+    daily = db.metrics_daily_signups(days=days)
+    events = db.metrics_funnel(days=days)
+
+    return templates.TemplateResponse(request, "admin/metrics.html", {
+        "days": days,
+        "funnel": funnel,
+        "by_utm": by_utm,
+        "daily": daily,
+        "events": events,
+    })
+
+
 @router.get("/logout")
 async def admin_logout():
     response = RedirectResponse("/admin/login", status_code=302)

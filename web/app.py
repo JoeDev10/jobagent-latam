@@ -37,9 +37,13 @@ app.include_router(admin_router.router)
 @app.get("/", response_class=HTMLResponse)
 async def landing(request: Request):
     from web.auth import get_current_user
+    from web import tracking
     user = get_current_user(request)
     user_count = db.get_user_count()
-    return templates.TemplateResponse(request, "landing.html", {"user": user, "user_count": user_count})
+    response = templates.TemplateResponse(request, "landing.html", {"user": user, "user_count": user_count})
+    tracking.capture_utm_from_request(request, response)
+    tracking.log_event(request, "landing_view", user_id=user["sub"] if user else None)
+    return response
 
 
 @app.get("/privacy", response_class=HTMLResponse)

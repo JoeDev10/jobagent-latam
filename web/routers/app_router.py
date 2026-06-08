@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from web.auth import get_current_user
 from web.templates_env import templates
-from web import db
+from web import db, tracking
 from modules.tracker.database import ApplicationTracker
 
 router = APIRouter(prefix="/app")
@@ -143,13 +143,63 @@ async def upgrade_page(request: Request):
 
     runs_used = user.get("runs_used") or 0
 
+    tracking.log_event(request, "upgrade_viewed", user_id=user["id"])
+
+    from web import payments as mp
     return templates.TemplateResponse(request, "app/upgrade.html", {
         "user": user,
         "runs_used": runs_used,
         "free_runs_limit": FREE_RUNS_LIMIT,
-        "mp_checkout_url": os.environ.get("MP_CHECKOUT_URL", "#"),
+        "mp_configured": mp.is_configured(),
+        "mp_price_ars": mp.price_ars(),
+        "mp_checkout_url": os.environ.get("MP_CHECKOUT_URL", ""),  # link estático legacy
         "support_whatsapp": os.environ.get("SUPPORT_WHATSAPP", ""),
         "support_email": os.environ.get("SUPPORT_EMAIL", ""),
+        "active": "upgrade",
+    })
+
+
+@router.get("/upgrade/success", response_class=HTMLResponse)
+async def upgrade_success(request: Request):
+    try:
+        user_token, user = _auth(request)
+    except Exception:
+        return _login_redirect()
+    payment_id = request.query_params.get("payment_id") or request.query_params.get("collection_id")
+    status = request.query_params.get("status") or request.query_params.get("collection_status")
+    return templates.TemplateResponse(request, "app/upgrade_result.html", {
+        "user": user,
+        "result": "success",
+        "payment_id": payment_id,
+        "status": status,
+        "active": "upgrade",
+    })
+
+
+@router.get("/upgrade/pending", response_class=HTMLResponse)
+async def upgrade_pending(request: Request):
+    try:
+        user_token, user = _auth(request)
+    except Exception:
+        return _login_redirect()
+    return templates.TemplateResponse(request, "app/upgrade_result.html", {
+        "user": user,
+        "result": "pending",
+        "payment_id": request.query_params.get("payment_id"),
+        "active": "upgrade",
+    })
+
+
+@router.get("/upgrade/failure", response_class=HTMLResponse)
+async def upgrade_failure(request: Request):
+    try:
+        user_token, user = _auth(request)
+    except Exception:
+        return _login_redirect()
+    return templates.TemplateResponse(request, "app/upgrade_result.html", {
+        "user": user,
+        "result": "failure",
+        "payment_id": request.query_params.get("payment_id"),
         "active": "upgrade",
     })
 

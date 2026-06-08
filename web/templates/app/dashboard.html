@@ -2,23 +2,32 @@
 {% block title %}Dashboard — VacantIA{% endblock %}
 
 {% block content %}
-<!-- Header -->
-<div class="flex items-center justify-between mb-8">
-  <div>
-    <h1 class="text-2xl font-black text-slate-900">Buen día, {{ user.full_name.split()[0] }} 👋</h1>
-    <p class="text-slate-400 mt-1 text-sm">Acá vas a ver todo lo que el agente hizo por vos.</p>
+<!-- Header: gradient welcome -->
+<div class="bg-gradient-to-r from-violet-600 via-violet-700 to-indigo-700 rounded-2xl p-6 mb-8 text-white relative overflow-hidden">
+  <div class="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-white/5 pointer-events-none"></div>
+  <div class="absolute -left-8 -bottom-12 w-48 h-48 rounded-full bg-indigo-400/10 pointer-events-none"></div>
+  <div class="relative flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <div class="text-violet-300 text-xs font-semibold uppercase tracking-wider mb-1">Dashboard</div>
+      <h1 class="text-2xl font-black text-white mb-1">¡Hola, {{ user.full_name.split()[0] }}!</h1>
+      <p class="text-violet-200 text-sm">
+        {% if not has_profile %}Completá tu perfil para que el agente empiece a trabajar por vos.
+        {% elif not has_credentials %}Conectá un portal y arrancá tu primera búsqueda.
+        {% else %}Tu búsqueda de trabajo está activa. Revisá tus vacantes rankeadas.{% endif %}
+      </p>
+    </div>
+    {% if not has_profile %}
+    <a href="/app/onboarding" class="flex-shrink-0 inline-flex items-center gap-2 bg-white text-violet-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-violet-50 transition-colors shadow-lg">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Completar perfil
+    </a>
+    {% else %}
+    <a href="/app/search" class="flex-shrink-0 inline-flex items-center gap-2 bg-white text-violet-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-violet-50 transition-colors shadow-lg">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      Buscar vacantes
+    </a>
+    {% endif %}
   </div>
-  {% if not has_profile %}
-  <a href="/app/onboarding" class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-violet-200">
-    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-    Completar perfil
-  </a>
-  {% else %}
-  <a href="/app/search" class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-violet-200">
-    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-    Buscar vacantes
-  </a>
-  {% endif %}
 </div>
 
 {% if user.plan == 'free' %}
@@ -101,48 +110,48 @@
 {% set avg_score = (stats.avg_relevance_score * 100)|int %}
 
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-  <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-    <div class="flex items-center justify-between mb-3">
-      <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Total aplicadas</span>
-      <div class="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm border-t-[3px] border-t-violet-500 group hover:shadow-md transition-shadow">
+    <div class="flex items-center justify-between mb-4">
+      <div class="w-9 h-9 rounded-xl bg-violet-50 group-hover:bg-violet-100 flex items-center justify-center transition-colors">
         <svg class="w-4 h-4 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
       </div>
     </div>
     <div class="text-3xl font-black text-slate-900">{{ applied }}</div>
-    <div class="text-xs text-slate-400 mt-1">de {{ total }} procesadas</div>
+    <div class="text-xs font-semibold text-slate-500 mt-1">Aplicadas</div>
+    <div class="text-xs text-slate-400">de {{ total }} vacantes</div>
   </div>
 
-  <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-    <div class="flex items-center justify-between mb-3">
-      <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Pendientes</span>
-      <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm border-t-[3px] border-t-amber-400 group hover:shadow-md transition-shadow">
+    <div class="flex items-center justify-between mb-4">
+      <div class="w-9 h-9 rounded-xl bg-amber-50 group-hover:bg-amber-100 flex items-center justify-center transition-colors">
         <svg class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
       </div>
     </div>
     <div class="text-3xl font-black text-slate-900">{{ pending }}</div>
-    <div class="text-xs text-slate-400 mt-1">para revisar</div>
+    <div class="text-xs font-semibold text-slate-500 mt-1">Por revisar</div>
+    <div class="text-xs text-slate-400">pendientes</div>
   </div>
 
-  <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-    <div class="flex items-center justify-between mb-3">
-      <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Entrevistas</span>
-      <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm border-t-[3px] border-t-blue-500 group hover:shadow-md transition-shadow">
+    <div class="flex items-center justify-between mb-4">
+      <div class="w-9 h-9 rounded-xl bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
         <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
       </div>
     </div>
     <div class="text-3xl font-black text-slate-900">{{ interview }}</div>
-    <div class="text-xs text-slate-400 mt-1">conseguidas</div>
+    <div class="text-xs font-semibold text-slate-500 mt-1">Entrevistas</div>
+    <div class="text-xs text-slate-400">conseguidas</div>
   </div>
 
-  <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-    <div class="flex items-center justify-between mb-3">
-      <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Match promedio</span>
-      <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm border-t-[3px] border-t-emerald-500 group hover:shadow-md transition-shadow">
+    <div class="flex items-center justify-between mb-4">
+      <div class="w-9 h-9 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 flex items-center justify-center transition-colors">
         <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
       </div>
     </div>
     <div class="text-3xl font-black text-slate-900">{{ avg_score }}%</div>
-    <div class="text-xs text-slate-400 mt-1">de relevancia IA</div>
+    <div class="text-xs font-semibold text-slate-500 mt-1">Match promedio</div>
+    <div class="text-xs text-slate-400">relevancia IA</div>
   </div>
 </div>
 

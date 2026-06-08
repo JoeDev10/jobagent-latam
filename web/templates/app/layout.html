@@ -11,9 +11,10 @@
   <style>
     body { font-family: 'Inter', sans-serif; }
     .nav-item { transition: all 0.15s ease; }
-    .nav-item.active { background: rgba(124,58,237,0.08); color: #7c3aed; }
+    .nav-item.active { background: rgba(124,58,237,0.10); color: #7c3aed; box-shadow: inset 3px 0 0 #7c3aed; font-weight: 600; }
     .nav-item.active svg { color: #7c3aed; }
-    .nav-item:not(.active):hover { background: rgba(0,0,0,0.03); }
+    .nav-item:not(.active):hover { background: rgba(0,0,0,0.04); color: #334155; }
+    .nav-item:not(.active):hover svg { color: #64748b; }
     .status-aplicada   { background:#d1fae5; color:#065f46; }
     .status-pendiente  { background:#fef3c7; color:#92400e; }
     .status-rechazada  { background:#fee2e2; color:#991b1b; }

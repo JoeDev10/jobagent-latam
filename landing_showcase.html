@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VacantIA — Buscar trabajo no debería ser otro trabajo</title>
+
+<!-- Fraunces (display serif, characterful) · Hanken Grotesk (body) · Spline Sans Mono (labels) -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Hanken+Grotesk:wght@300..800&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        paper:   '#F6F1E7',
+        paper2:  '#EFE7D6',
+        ink:     '#17120D',
+        inksoft: '#4B4136',
+        accent:  '#DC3A1E',
+        accentdeep: '#A82C13',
+        mark:    '#F2C94C',
+        line:    '#D9CEB9',
+      },
+      fontFamily: {
+        display: ['Fraunces', 'serif'],
+        sans: ['Hanken Grotesk', 'sans-serif'],
+        mono: ['Spline Sans Mono', 'monospace'],
+      },
+    }
+  }
+}
+</script>
+<style>
+  :root { --line:#D9CEB9; }
+  body { background:#F6F1E7; color:#17120D; }
+
+  /* paper grain overlay */
+  .grain::before{
+    content:""; position:fixed; inset:0; z-index:1; pointer-events:none; opacity:.40; mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  }
+  .ed-rule { border-top:1px solid var(--line); }
+  .ed-rule-ink { border-top:2px solid #17120D; }
+
+  /* link underline draw */
+  .ul-link { background-image:linear-gradient(#DC3A1E,#DC3A1E); background-size:0% 2px; background-position:0 100%; background-repeat:no-repeat; transition:background-size .3s ease; }
+  .ul-link:hover { background-size:100% 2px; }
+
+  /* drop cap */
+  .dropcap::first-letter{
+    font-family:'Fraunces',serif; float:left; font-weight:600; font-size:4.4rem; line-height:.78;
+    padding:.35rem .6rem .1rem 0; color:#DC3A1E; font-variation-settings:'opsz' 144,'SOFT' 60;
+  }
+
+  /* marker highlight */
+  .marker{ background:linear-gradient(180deg, transparent 58%, rgba(242,201,76,.65) 58%); padding:0 .12em; }
+
+  /* hero reveal */
+  @keyframes rise{ from{opacity:0; transform:translateY(22px)} to{opacity:1; transform:translateY(0)} }
+  .rise{ opacity:0; animation:rise .8s cubic-bezier(.2,.7,.2,1) forwards; }
+  .d1{animation-delay:.05s}.d2{animation-delay:.16s}.d3{animation-delay:.28s}.d4{animation-delay:.40s}.d5{animation-delay:.52s}.d6{animation-delay:.64s}
+
+  /* ticker */
+  .ticker-track{ display:inline-flex; white-space:nowrap; animation:scroll 32s linear infinite; }
+  @keyframes scroll{ from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+  /* clipping card rotation */
+  .clip{ transform:rotate(-2.2deg); transition:transform .35s ease; }
+  .clip:hover{ transform:rotate(0deg); }
+  .clip2{ transform:rotate(1.6deg); }
+
+  .fr-soft{ font-variation-settings:'opsz' 144,'SOFT' 50,'wght' 560; }
+  .stamp{ transform:rotate(-9deg); }
+
+  ::selection{ background:#DC3A1E; color:#F6F1E7; }
+  .card-lift{ transition:transform .28s ease, box-shadow .28s ease; }
+  .card-lift:hover{ transform:translateY(-4px); box-shadow:8px 12px 0 #17120D; }
+
+  details>summary{ list-style:none; cursor:pointer; }
+  details>summary::-webkit-details-marker{ display:none; }
+  details[open] .faq-plus{ transform:rotate(45deg); }
+  .faq-plus{ transition:transform .25s ease; }
+</style>
+</head>
+<body class="grain font-sans antialiased relative">
+
+<!-- ════════ MASTHEAD BAR ════════ -->
+<div class="relative z-10 bg-ink text-paper">
+  <div class="max-w-6xl mx-auto px-6 h-9 flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.18em]">
+    <span class="hidden sm:inline">Edición LATAM</span>
+    <span class="text-mark">★ Buscás trabajo, nosotros lo curamos ★</span>
+    <span id="today" class="hidden sm:inline">Martes</span>
+  </div>
+</div>
+
+<!-- ════════ NAV ════════ -->
+<header class="relative z-10 sticky top-0 bg-paper/85 backdrop-blur ed-rule" style="border-bottom:1px solid var(--line)">
+  <nav class="max-w-6xl mx-auto px-6 h-[68px] flex items-center justify-between">
+    <a href="#" class="flex items-end gap-2 group">
+      <span class="font-display text-3xl leading-none fr-soft">Vacant<span class="text-accent">IA</span></span>
+      <span class="hidden sm:block font-mono text-[10px] uppercase tracking-widest text-inksoft mb-1 pb-0.5">est. 2026</span>
+    </a>
+    <div class="hidden md:flex items-center gap-8 text-sm font-medium text-inksoft">
+      <a href="#metodo" class="ul-link">El método</a>
+      <a href="#funciones" class="ul-link">Funciones</a>
+      <a href="#testimonios" class="ul-link">Testimonios</a>
+      <a href="#precios" class="ul-link">Precios</a>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="#" class="hidden sm:inline text-sm font-semibold text-ink ul-link">Iniciar sesión</a>
+      <a href="#" class="bg-ink text-paper px-4 py-2 text-sm font-semibold hover:bg-accent transition-colors duration-200" style="box-shadow:3px 3px 0 #DC3A1E">Empezar gratis</a>
+    </div>
+  </nav>
+</header>
+
+<!-- ════════ HERO / MASTHEAD ════════ -->
+<section class="relative z-10 max-w-6xl mx-auto px-6 pt-14 pb-10">
+  <div class="rise d1 flex items-center gap-4 mb-8">
+    <span class="font-mono text-[11px] uppercase tracking-[0.2em] text-accent">N.º 001</span>
+    <div class="flex-1 ed-rule-ink"></div>
+    <span class="font-mono text-[11px] uppercase tracking-[0.2em] text-inksoft">Computrabajo · Bumeran · ZonaJobs</span>
+  </div>
+
+  <div class="grid lg:grid-cols-12 gap-10 items-end">
+    <!-- Headline col -->
+    <div class="lg:col-span-7">
+      <h1 class="font-display text-ink leading-[0.92] tracking-[-0.02em]">
+        <span class="rise d2 block text-[clamp(2.6rem,7vw,5.4rem)] font-light">Buscar trabajo</span>
+        <span class="rise d3 block text-[clamp(2.6rem,7vw,5.4rem)] font-light italic">no debería ser</span>
+        <span class="rise d4 block text-[clamp(2.8rem,7.4vw,5.8rem)] font-semibold">otro <span class="text-accent">trabajo</span>.</span>
+      </h1>
+
+      <p class="rise d5 mt-7 max-w-xl text-lg text-inksoft leading-relaxed">
+        VacantIA escanea los portales de LATAM, <span class="marker">rankea las vacantes</span> que de verdad te convienen y te escribe la carta de presentación. Vos solo revisás y elegís.
+      </p>
+
+      <div class="rise d6 mt-9 flex flex-col sm:flex-row gap-3">
+        <a href="#" class="group inline-flex items-center justify-center gap-2 bg-accent text-paper px-7 py-3.5 font-semibold text-base transition-all duration-200 hover:bg-accentdeep" style="box-shadow:4px 4px 0 #17120D">
+          Crear mi edición
+          <span class="transition-transform duration-200 group-hover:translate-x-1">→</span>
+        </a>
+        <a href="#metodo" class="inline-flex items-center justify-center gap-2 border-2 border-ink px-7 py-3.5 font-semibold text-base hover:bg-ink hover:text-paper transition-colors duration-200">
+          Ver cómo funciona
+        </a>
+      </div>
+
+      <div class="rise d6 mt-8 flex items-center gap-3">
+        <div class="flex -space-x-2">
+          <div class="w-8 h-8 rounded-full bg-accent border-2 border-paper grid place-items-center text-paper text-xs font-bold">M</div>
+          <div class="w-8 h-8 rounded-full bg-ink border-2 border-paper grid place-items-center text-paper text-xs font-bold">L</div>
+          <div class="w-8 h-8 rounded-full bg-inksoft border-2 border-paper grid place-items-center text-paper text-xs font-bold">S</div>
+        </div>
+        <p class="text-sm text-inksoft"><strong class="text-ink">+120 personas</strong> ya buscan trabajo con menos esfuerzo</p>
+      </div>
+    </div>
+
+    <!-- Job clipping col -->
+    <div class="lg:col-span-5 relative rise d5">
+      <!-- stamp -->
+      <div class="stamp absolute -top-5 -left-3 z-20 bg-accent text-paper font-mono text-[10px] uppercase tracking-widest px-3 py-1.5 border-2 border-ink" style="box-shadow:2px 2px 0 #17120D">Match 94%</div>
+
+      <!-- main clipping -->
+      <article class="clip relative bg-paper2 border-2 border-ink p-5" style="box-shadow:6px 8px 0 #17120D">
+        <div class="flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-inksoft mb-3">
+          <span>Vacante destacada</span><span>Computrabajo</span>
+        </div>
+        <div class="ed-rule-ink mb-3"></div>
+        <h3 class="font-display text-2xl font-semibold leading-tight mb-1">QA Analyst Semi-Senior</h3>
+        <p class="text-sm text-inksoft mb-4">Mercado Libre · Remoto · Buenos Aires</p>
+        <p class="text-sm leading-relaxed text-ink/80 mb-4 dropcap">Buscamos perfil con experiencia en testing manual y automatizado, conocimiento de Selenium y ganas de crecer en un equipo ágil de alto impacto.</p>
+        <div class="flex flex-wrap gap-1.5 mb-4">
+          <span class="font-mono text-[10px] uppercase tracking-wide border border-ink px-2 py-1">Selenium ✓</span>
+          <span class="font-mono text-[10px] uppercase tracking-wide border border-ink px-2 py-1">QA Manual ✓</span>
+          <span class="font-mono text-[10px] uppercase tracking-wide border border-ink px-2 py-1">Remoto ✓</span>
+        </div>
+        <div class="ed-rule mb-3"></div>
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-[11px] text-accent uppercase tracking-widest">▶ Carta lista</span>
+          <span class="text-sm font-semibold ul-link cursor-pointer">Revisar y aplicar →</span>
+        </div>
+      </article>
+
+      <!-- secondary peeking clipping -->
+      <div class="clip2 absolute -bottom-8 -right-2 hidden sm:block bg-paper border-2 border-ink px-4 py-3 w-52" style="box-shadow:4px 5px 0 #DC3A1E">
+        <div class="font-mono text-[9px] uppercase tracking-widest text-inksoft mb-1">Bumeran · 81%</div>
+        <div class="font-display text-base font-semibold leading-tight">QA Tester Sr — Accenture</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ TICKER ════════ -->
+<div class="relative z-10 bg-ink text-paper py-3 overflow-hidden border-y-2 border-ink mt-6">
+  <div class="ticker-track font-display italic text-xl">
+    <span class="flex items-center gap-8 pr-8">
+      <span>Computrabajo</span><span class="text-accent text-2xl">✦</span>
+      <span>Bumeran</span><span class="text-accent text-2xl">✦</span>
+      <span>ZonaJobs</span><span class="text-accent text-2xl">✦</span>
+      <span>Scoring con IA</span><span class="text-accent text-2xl">✦</span>
+      <span>Cartas personalizadas</span><span class="text-accent text-2xl">✦</span>
+    </span>
+    <span class="flex items-center gap-8 pr-8" aria-hidden="true">
+      <span>Computrabajo</span><span class="text-accent text-2xl">✦</span>
+      <span>Bumeran</span><span class="text-accent text-2xl">✦</span>
+      <span>ZonaJobs</span><span class="text-accent text-2xl">✦</span>
+      <span>Scoring con IA</span><span class="text-accent text-2xl">✦</span>
+      <span>Cartas personalizadas</span><span class="text-accent text-2xl">✦</span>
+    </span>
+  </div>
+</div>
+
+<!-- ════════ MÉTODO ════════ -->
+<section id="metodo" class="relative z-10 max-w-6xl mx-auto px-6 py-24">
+  <div class="flex items-end justify-between mb-14 gap-6 flex-wrap">
+    <h2 class="font-display text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-tight">El método,<br/>en tres actos.</h2>
+    <p class="max-w-xs text-inksoft text-sm leading-relaxed">Configurás una vez. El agente repite el trabajo aburrido cada vez que lo necesitás.</p>
+  </div>
+
+  <div class="grid md:grid-cols-3">
+    <!-- step 1 -->
+    <div class="group border-t-2 border-ink pt-6 pr-6 pb-6 md:border-r border-line">
+      <div class="flex items-baseline justify-between mb-4">
+        <span class="font-display text-7xl font-light text-accent leading-none">I</span>
+        <span class="font-mono text-[10px] uppercase tracking-widest text-inksoft">Acto uno</span>
+      </div>
+      <h3 class="font-display text-2xl font-semibold mb-2">Cargás tu perfil</h3>
+      <p class="text-inksoft leading-relaxed text-[15px]">Experiencia, skills y qué buscás. Cinco minutos, una sola vez. El agente aprende quién sos.</p>
+    </div>
+    <!-- step 2 -->
+    <div class="group border-t-2 border-ink pt-6 px-6 pb-6 md:border-r border-line">
+      <div class="flex items-baseline justify-between mb-4">
+        <span class="font-display text-7xl font-light text-accent leading-none">II</span>
+        <span class="font-mono text-[10px] uppercase tracking-widest text-inksoft">Acto dos</span>
+      </div>
+      <h3 class="font-display text-2xl font-semibold mb-2">La IA busca y rankea</h3>
+      <p class="text-inksoft leading-relaxed text-[15px]">Escanea tres portales y puntúa cada vacante del 0 al 100% según tu encaje real. Sin ruido.</p>
+    </div>
+    <!-- step 3 -->
+    <div class="group border-t-2 border-ink pt-6 pl-0 md:pl-6 pb-6">
+      <div class="flex items-baseline justify-between mb-4">
+        <span class="font-display text-7xl font-light text-accent leading-none">III</span>
+        <span class="font-mono text-[10px] uppercase tracking-widest text-inksoft">Acto tres</span>
+      </div>
+      <h3 class="font-display text-2xl font-semibold mb-2">Elegís y aplicás</h3>
+      <p class="text-inksoft leading-relaxed text-[15px]">Revisás las mejores, generás la carta con un click y aplicás directo en el portal. Vos decidís.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ FUNCIONES ════════ -->
+<section id="funciones" class="relative z-10 bg-paper2 border-y-2 border-ink">
+  <div class="max-w-6xl mx-auto px-6 py-24">
+    <div class="text-center mb-16">
+      <span class="font-mono text-[11px] uppercase tracking-[0.25em] text-accent">Lo que viene en cada edición</span>
+      <h2 class="font-display text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-tight mt-3">Todo lo que necesitás</h2>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-px bg-line border-2 border-ink">
+      <!-- feature -->
+      <div class="card-lift bg-paper p-7">
+        <div class="font-display text-4xl text-accent mb-4">✶</div>
+        <h3 class="font-display text-xl font-semibold mb-2">Scraping multi-portal</h3>
+        <p class="text-inksoft text-[15px] leading-relaxed">Computrabajo, Bumeran y ZonaJobs al mismo tiempo, todo en un solo lugar.</p>
+      </div>
+      <div class="card-lift bg-paper p-7">
+        <div class="font-display text-4xl text-accent mb-4">◑</div>
+        <h3 class="font-display text-xl font-semibold mb-2">Scoring con IA</h3>
+        <p class="text-inksoft text-[15px] leading-relaxed">Cada vacante puntuada del 0 al 100%, con sus puntos fuertes y los gaps explicados.</p>
+      </div>
+      <div class="card-lift bg-paper p-7">
+        <div class="font-display text-4xl text-accent mb-4">✍</div>
+        <h3 class="font-display text-xl font-semibold mb-2">Cartas personalizadas</h3>
+        <p class="text-inksoft text-[15px] leading-relaxed">Una carta en español rioplatense adaptada a cada vacante, lista en segundos.</p>
+      </div>
+      <div class="card-lift bg-paper p-7">
+        <div class="font-display text-4xl text-accent mb-4">▤</div>
+        <h3 class="font-display text-xl font-semibold mb-2">Panel de vacantes</h3>
+        <p class="text-inksoft text-[15px] leading-relaxed">Ordenadas por match, con filtros por estado y portal. Gestionás todo desde un lugar.</p>
+      </div>
+      <div class="card-lift bg-paper p-7">
+        <div class="font-display text-4xl text-accent mb-4">◔</div>
+        <h3 class="font-display text-xl font-semibold mb-2">Seguimiento de estados</h3>
+        <p class="text-inksoft text-[15px] leading-relaxed">Aplicada, en entrevista, con oferta o descartada. Tu historial siempre al día.</p>
+      </div>
+      <div class="card-lift bg-paper p-7">
+        <div class="font-display text-4xl text-accent mb-4">✆</div>
+        <h3 class="font-display text-xl font-semibold mb-2">Avisos por Telegram</h3>
+        <p class="text-inksoft text-[15px] leading-relaxed">Un resumen de las vacantes encontradas y sus scores, directo a tu teléfono.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ TESTIMONIOS ════════ -->
+<section id="testimonios" class="relative z-10 max-w-6xl mx-auto px-6 py-24">
+  <div class="grid lg:grid-cols-12 gap-10">
+    <div class="lg:col-span-4">
+      <span class="font-mono text-[11px] uppercase tracking-[0.25em] text-accent">Cartas de lectores</span>
+      <h2 class="font-display text-[clamp(2rem,5vw,3.3rem)] font-semibold leading-[0.95] tracking-tight mt-3">Gente real.<br/>Resultados reales.</h2>
+      <p class="text-inksoft mt-5 text-[15px] leading-relaxed">Profesionales de LATAM que dejaron de pelear con los portales.</p>
+    </div>
+
+    <div class="lg:col-span-8 grid sm:grid-cols-2 gap-6">
+      <figure class="bg-paper2 border-2 border-ink p-6" style="box-shadow:5px 6px 0 #17120D">
+        <div class="font-display text-5xl text-accent leading-none mb-2">“</div>
+        <blockquote class="font-display text-lg leading-snug mb-5">Tardaba horas revisando portales. Ahora en minutos tengo las mejores rankeadas y la carta escrita. Conseguí 3 entrevistas la primera semana.</blockquote>
+        <figcaption class="ed-rule pt-3 flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-accent grid place-items-center text-paper text-sm font-bold">M</div>
+          <div><div class="font-semibold text-sm">Martina G.</div><div class="font-mono text-[11px] text-inksoft uppercase tracking-wide">QA Analyst · Bs. As.</div></div>
+        </figcaption>
+      </figure>
+
+      <figure class="bg-ink text-paper border-2 border-ink p-6 sm:mt-8" style="box-shadow:5px 6px 0 #DC3A1E">
+        <div class="font-display text-5xl text-accent leading-none mb-2">“</div>
+        <blockquote class="font-display text-lg leading-snug mb-5">Entrevista en Globant a la segunda semana. La carta personalizada marcó la diferencia: el reclutador me dijo que estaba muy bien escrita.</blockquote>
+        <figcaption class="pt-3 flex items-center gap-3" style="border-top:1px solid #4B4136">
+          <div class="w-9 h-9 rounded-full bg-accent grid place-items-center text-paper text-sm font-bold">L</div>
+          <div><div class="font-semibold text-sm">Lucas R.</div><div class="font-mono text-[11px] text-paper/60 uppercase tracking-wide">Dev Jr · Córdoba</div></div>
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ PRECIOS ════════ -->
+<section id="precios" class="relative z-10 bg-paper2 border-y-2 border-ink">
+  <div class="max-w-5xl mx-auto px-6 py-24">
+    <div class="text-center mb-14">
+      <span class="font-mono text-[11px] uppercase tracking-[0.25em] text-accent">Suscripción</span>
+      <h2 class="font-display text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-none tracking-tight mt-3">Precios sin letra chica</h2>
+      <p class="text-inksoft mt-4">Cancelás cuando quieras. Sin permanencia.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+      <!-- free -->
+      <div class="bg-paper border-2 border-ink p-8 flex flex-col">
+        <div class="font-mono text-[11px] uppercase tracking-widest text-inksoft mb-3">Gratuito</div>
+        <div class="font-display text-6xl font-semibold leading-none">$0</div>
+        <div class="text-inksoft text-sm mt-1 mb-6">para siempre</div>
+        <ul class="space-y-3 text-[15px] mb-8 flex-1">
+          <li class="flex gap-3"><span class="text-accent font-bold">✓</span> 3 búsquedas gratuitas</li>
+          <li class="flex gap-3"><span class="text-accent font-bold">✓</span> 1 portal (Computrabajo)</li>
+          <li class="flex gap-3"><span class="text-accent font-bold">✓</span> Panel de vacantes completo</li>
+          <li class="flex gap-3"><span class="text-accent font-bold">✓</span> Soporte por email</li>
+        </ul>
+        <a href="#" class="block text-center border-2 border-ink py-3 font-semibold hover:bg-ink hover:text-paper transition-colors">Empezar gratis</a>
+      </div>
+
+      <!-- pro -->
+      <div class="relative bg-ink text-paper border-2 border-ink p-8 flex flex-col" style="box-shadow:8px 8px 0 #DC3A1E">
+        <div class="stamp absolute -top-4 -right-3 bg-mark text-ink font-mono text-[10px] uppercase tracking-widest px-3 py-1.5 border-2 border-ink">Más elegido</div>
+        <div class="font-mono text-[11px] uppercase tracking-widest text-accent mb-3">Pro</div>
+        <div class="font-display text-6xl font-semibold leading-none">$15<span class="text-2xl font-light text-paper/60"> USD</span></div>
+        <div class="text-paper/60 text-sm mt-1 mb-6">por mes</div>
+        <ul class="space-y-3 text-[15px] mb-8 flex-1">
+          <li class="flex gap-3"><span class="text-accent font-bold">✓</span> Búsquedas ilimitadas</li>
+          <li class="flex gap-3"><span class="text-accent font-bold">✓</span> 3 portales (Compu + Bumeran + Zona)</li>
+          <li class="flex gap-3"><span class="text-accent font-bold">✓</span> Cartas personalizadas con IA</li>
+          <li class="flex gap-3"><span class="text-accent font-bold">✓</span> Avisos por Telegram</li>
+          <li class="flex gap-3"><span class="text-accent font-bold">✓</span> Soporte prioritario</li>
+        </ul>
+        <a href="#" class="block text-center bg-accent text-paper py-3 font-semibold hover:bg-accentdeep transition-colors">Empezar prueba gratis →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ FAQ ════════ -->
+<section class="relative z-10 max-w-3xl mx-auto px-6 py-24">
+  <h2 class="font-display text-[clamp(2rem,5vw,3rem)] font-semibold leading-none tracking-tight mb-10 text-center">Preguntas frecuentes</h2>
+  <div class="border-t-2 border-ink">
+    <details class="border-b border-line group">
+      <summary class="flex items-center justify-between py-5 font-display text-xl font-medium">¿Necesito saber programar?<span class="faq-plus font-sans text-accent text-2xl">+</span></summary>
+      <p class="text-inksoft pb-5 leading-relaxed">Para nada. Completás tu perfil, conectás los portales y el agente hace el resto. Sin código ni instalaciones.</p>
+    </details>
+    <details class="border-b border-line group">
+      <summary class="flex items-center justify-between py-5 font-display text-xl font-medium">¿El agente aplica por mí solo?<span class="faq-plus font-sans text-accent text-2xl">+</span></summary>
+      <p class="text-inksoft pb-5 leading-relaxed">No. Busca y rankea por match, pero sos vos quien decide a cuáles aplicar. Generás la carta con un click y aplicás directo en el portal. Control total.</p>
+    </details>
+    <details class="border-b border-line group">
+      <summary class="flex items-center justify-between py-5 font-display text-xl font-medium">¿Qué tan personalizada es la carta?<span class="faq-plus font-sans text-accent text-2xl">+</span></summary>
+      <p class="text-inksoft pb-5 leading-relaxed">Muy. La IA lee la descripción completa de la vacante y tu perfil para escribir algo específico, en rioplatense. La podés editar antes de usarla.</p>
+    </details>
+    <details class="border-b border-line group">
+      <summary class="flex items-center justify-between py-5 font-display text-xl font-medium">¿Mis datos están seguros?<span class="faq-plus font-sans text-accent text-2xl">+</span></summary>
+      <p class="text-inksoft pb-5 leading-relaxed">Tus credenciales se guardan encriptadas y nunca se comparten. El agente solo lee vacantes públicas. Podés borrar tu cuenta cuando quieras.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ════════ CTA ════════ -->
+<section class="relative z-10 bg-accent text-paper border-t-2 border-ink overflow-hidden">
+  <div class="max-w-4xl mx-auto px-6 py-24 text-center relative">
+    <div class="font-mono text-[11px] uppercase tracking-[0.3em] mb-5 text-paper/80">Última llamada</div>
+    <h2 class="font-display text-[clamp(2.4rem,6vw,4.5rem)] font-semibold leading-[0.95] tracking-tight mb-6">
+      Tu próxima edición<br/>te está esperando.
+    </h2>
+    <p class="text-paper/85 text-lg mb-10 max-w-lg mx-auto">Dejá que el agente encuentre y rankee las mejores vacantes mientras vos te preparás para las entrevistas.</p>
+    <a href="#" class="inline-flex items-center gap-3 bg-paper text-ink px-9 py-4 font-semibold text-lg hover:bg-ink hover:text-paper transition-colors duration-200" style="box-shadow:5px 5px 0 #17120D">
+      Crear cuenta gratis →
+    </a>
+    <p class="font-mono text-[11px] uppercase tracking-widest text-paper/70 mt-6">Sin tarjeta · Listo en 5 minutos</p>
+  </div>
+</section>
+
+<!-- ════════ COLOPHON / FOOTER ════════ -->
+<footer class="relative z-10 bg-ink text-paper">
+  <div class="max-w-6xl mx-auto px-6 py-12">
+    <div class="flex flex-col md:flex-row justify-between gap-8 mb-10">
+      <div>
+        <div class="font-display text-3xl fr-soft mb-2">Vacant<span class="text-accent">IA</span></div>
+        <p class="text-paper/60 text-sm max-w-xs">El diario de oportunidades laborales, curado por inteligencia artificial. Hecho en LATAM.</p>
+      </div>
+      <div class="flex gap-14 font-mono text-[11px] uppercase tracking-widest">
+        <div class="space-y-2">
+          <div class="text-paper/40 mb-3">Producto</div>
+          <a href="#metodo" class="block text-paper/80 hover:text-accent">Método</a>
+          <a href="#funciones" class="block text-paper/80 hover:text-accent">Funciones</a>
+          <a href="#precios" class="block text-paper/80 hover:text-accent">Precios</a>
+        </div>
+        <div class="space-y-2">
+          <div class="text-paper/40 mb-3">Legal</div>
+          <a href="#" class="block text-paper/80 hover:text-accent">Privacidad</a>
+          <a href="#" class="block text-paper/80 hover:text-accent">Términos</a>
+        </div>
+      </div>
+    </div>
+    <div class="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-[11px] font-mono uppercase tracking-widest text-paper/50" style="border-top:1px solid #4B4136">
+      <span>VacantIA © 2026 · Edición N.º 001</span>
+      <span>Hecho con ♥ para quienes buscan trabajo en LATAM</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // fecha de hoy en la masthead
+  const dias=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const d=new Date();
+  const el=document.getElementById('today');
+  if(el) el.textContent = `${dias[d.getDay()]} ${d.getDate()} ${meses[d.getMonth()]} ${d.getFullYear()}`;
+</script>
+</body>
+</html>

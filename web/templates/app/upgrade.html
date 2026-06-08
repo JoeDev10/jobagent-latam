@@ -2,7 +2,7 @@
 {% block title %}Actualizar a Pro — VacantIA{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto">
+<div class="max-w-2xl mx-auto" x-data="upgradeFlow()">
 
   <!-- Header -->
   <div class="mb-8">
@@ -93,7 +93,27 @@
         {% endfor %}
       </ul>
 
-      {% if mp_checkout_url and mp_checkout_url != '#' %}
+      {% if mp_configured %}
+      <button @click="startCheckout()" :disabled="loading"
+        class="flex items-center justify-center gap-3 bg-[#00B1EA] hover:bg-[#009fd6] disabled:opacity-60 disabled:cursor-not-allowed text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors w-full shadow-lg">
+        <template x-if="!loading">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-5.41 8.248a.75.75 0 01-1.254.016L7.5 11.25l1.5-1.125 2.875 3.836 4.312-6.569 1.375.856z"/>
+          </svg>
+        </template>
+        <template x-if="loading">
+          <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+        </template>
+        <span x-text="loading ? 'Redirigiendo al checkout...' : 'Pagar con Mercado Pago'"></span>
+      </button>
+      <p class="text-violet-200 text-xs text-center mt-3">
+        Total a pagar: <strong class="text-white">${{ '{:,.0f}'.format(mp_price_ars).replace(',', '.') }} ARS</strong> / mes
+      </p>
+      <p x-show="error" x-cloak class="text-amber-200 text-sm text-center mt-2 bg-red-500/20 border border-red-300/30 rounded-lg px-3 py-2" x-text="error"></p>
+      {% elif mp_checkout_url %}
       <a href="{{ mp_checkout_url }}" target="_blank" rel="noopener"
         class="flex items-center justify-center gap-3 bg-[#00B1EA] hover:bg-[#009fd6] text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors w-full shadow-lg">
         <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
@@ -128,18 +148,41 @@
   <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
     <h3 class="font-bold text-slate-900 mb-4">¿Cómo funciona el pago?</h3>
     <div class="space-y-4">
+      {% if mp_configured %}
       <div class="flex items-start gap-4">
         <div class="w-7 h-7 rounded-full bg-violet-100 text-violet-700 text-xs font-black flex items-center justify-center flex-shrink-0 mt-0.5">1</div>
         <div>
-          <div class="font-semibold text-slate-800 text-sm">Pagá por Mercado Pago o contactanos directamente</div>
-          <div class="text-xs text-slate-400 mt-0.5">Aceptamos todos los medios de pago habituales en Argentina.</div>
+          <div class="font-semibold text-slate-800 text-sm">Hacé click en "Pagar con Mercado Pago"</div>
+          <div class="text-xs text-slate-400 mt-0.5">Te redirigimos al checkout seguro de MP. Aceptamos tarjeta, débito, transferencia y dinero en cuenta.</div>
+        </div>
+      </div>
+      <div class="flex items-start gap-4">
+        <div class="w-7 h-7 rounded-full bg-violet-100 text-violet-700 text-xs font-black flex items-center justify-center flex-shrink-0 mt-0.5">2</div>
+        <div>
+          <div class="font-semibold text-slate-800 text-sm">Pagá con tu método preferido</div>
+          <div class="text-xs text-slate-400 mt-0.5">Mercado Pago procesa el pago en segundos.</div>
+        </div>
+      </div>
+      <div class="flex items-start gap-4">
+        <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black flex items-center justify-center flex-shrink-0 mt-0.5">3</div>
+        <div>
+          <div class="font-semibold text-slate-800 text-sm">Tu cuenta se activa automáticamente</div>
+          <div class="text-xs text-slate-400 mt-0.5">Apenas MP confirma el pago, tu plan pasa a Pro y podés buscar sin límites.</div>
+        </div>
+      </div>
+      {% else %}
+      <div class="flex items-start gap-4">
+        <div class="w-7 h-7 rounded-full bg-violet-100 text-violet-700 text-xs font-black flex items-center justify-center flex-shrink-0 mt-0.5">1</div>
+        <div>
+          <div class="font-semibold text-slate-800 text-sm">Contactanos por WhatsApp o email</div>
+          <div class="text-xs text-slate-400 mt-0.5">Te pasamos los datos de pago y aceptamos todos los medios habituales en Argentina.</div>
         </div>
       </div>
       <div class="flex items-start gap-4">
         <div class="w-7 h-7 rounded-full bg-violet-100 text-violet-700 text-xs font-black flex items-center justify-center flex-shrink-0 mt-0.5">2</div>
         <div>
           <div class="font-semibold text-slate-800 text-sm">Mandanos tu email (<code class="bg-slate-100 px-1 rounded text-xs">{{ user.email }}</code>)</div>
-          <div class="text-xs text-slate-400 mt-0.5">Por WhatsApp, email o el mismo chat de Mercado Pago.</div>
+          <div class="text-xs text-slate-400 mt-0.5">Por WhatsApp o email para vincular el pago a tu cuenta.</div>
         </div>
       </div>
       <div class="flex items-start gap-4">
@@ -149,9 +192,36 @@
           <div class="text-xs text-slate-400 mt-0.5">Recibís un email de confirmación y podés empezar a buscar sin límites.</div>
         </div>
       </div>
+      {% endif %}
     </div>
   </div>
   {% endif %}
 
 </div>
+
+<script>
+function upgradeFlow() {
+  return {
+    loading: false,
+    error: '',
+    async startCheckout() {
+      this.loading = true;
+      this.error = '';
+      try {
+        const r = await fetch('/api/mp/create_preference', { method: 'POST' });
+        const data = await r.json();
+        if (!r.ok || !data.init_point) {
+          this.error = data.error || 'No se pudo iniciar el pago. Probá de nuevo o contactá soporte.';
+          this.loading = false;
+          return;
+        }
+        window.location.href = data.init_point;
+      } catch (e) {
+        this.error = 'Error de conexión. Verificá tu internet y probá de nuevo.';
+        this.loading = false;
+      }
+    }
+  }
+}
+</script>
 {% endblock %}
