@@ -59,7 +59,16 @@ class _TursoConn:
         self._c = conn
 
     def execute(self, sql, params=()):
-        return _TursoCur(self._c.execute(sql, params))
+        try:
+            return _TursoCur(self._c.execute(sql, params))
+        except Exception as e:
+            # libsql_experimental lanza ValueError (Hrana); el resto del código
+            # espera las excepciones de sqlite3 (ej: IntegrityError en create_user,
+            # OperationalError en las migraciones ALTER TABLE)
+            msg = str(e)
+            if "constraint" in msg.lower():
+                raise sqlite3.IntegrityError(msg) from e
+            raise sqlite3.OperationalError(msg) from e
 
     def executescript(self, script):
         for stmt in script.split(";"):
