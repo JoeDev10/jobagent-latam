@@ -66,6 +66,10 @@ class _TursoConn:
         self._c = conn
 
     def execute(self, sql, params=()):
+        # libsql_experimental solo acepta tuplas como parámetros (sqlite3 acepta
+        # cualquier secuencia, por eso los call sites con listas pasan los tests)
+        if isinstance(params, list):
+            params = tuple(params)
         try:
             return _TursoCur(self._c.execute(sql, params))
         except Exception as e:
